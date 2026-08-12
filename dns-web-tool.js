@@ -1,0 +1,958 @@
+const http = require('http');
+const net = require('net');
+const dgram = require('dgram');
+const dnsPacket = require('dns-packet');	// https://github.com/mafintosh/dns-packet
+const dnsTypes = require('dns-packet/types');
+
+// RFC 8914 に定義されている INFO-CODE のマッピング表
+const EDE_ERRORS = {
+    0: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-0-o">Other Error</a>',
+    1: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-1-u">Unsupported DNSKEY Algorithm</a>',
+    2: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-2-u">Unsupported DS Digest Type</a>',
+    3: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-3-s">Stale Answer</a>',
+    4: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-4-f">Forged Answer</a>',
+    5: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-5-d">DNSSEC Indeterminate</a>',
+    6: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-6-d">DNSSEC Bogus</a>',
+    7: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-7-s">Signature Expired</a>',
+    8: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-8-s">Signature Not Yet Valid</a>',
+    9: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-9-d">DNSKEY Missing</a>',
+    10: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-10-">RRSIGs Missing</a>',
+    11: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-11-">No Zone Key Bit Set</a>',
+    12: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-12-">NSEC Missing</a>',
+    13: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-13-">Cached Error</a>',
+    14: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-14-">Not Ready</a>',
+    15: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-15-">Blocked</a>',
+    16: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-16-">Censored</a>',
+    17: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-17-">Filtered</a>',
+    18: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-18-">Prohibited</a>',
+    19: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-19-">Stale NXDOMAIN Answer</a>',
+    20: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-20-">Not Authoritative</a>',
+    21: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-21-">Not Supported</a>',
+    22: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-22-">No Reachable Authority</a>',
+    23: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-23-">Network Error</a>',
+    24: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-24-">Invalid Data</a>'
+};
+
+// HTMLエスケープ処理 (XSSインジェクション対策)
+const escapeHtml = (str) => {
+    if (typeof str !== 'string') return '';
+    return str.replace(/[&<>"']/g, (match) => {
+        const escapes = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        };
+        return escapes[match];
+    });
+};
+
+const addLinkToDisplayData = (origin, pathname, dnsServer, domainName, queryType, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType, displayData) => {
+    let html = `<a href=${origin}${pathname}?server=${escapeHtml(dnsServer)}&name=${escapeHtml(domainName)}&type=${queryType}&rd=${recursionDesired ? '1' : '0'}`;
+        html += `&tcp=${sendTcp ? '1' : '0'}&ipv6=${sendIpv6 ? '1' : '0'}&edns0=${edns0Enable ? '1' : '0'}&dnssec=${dnssecOk ? '1' : '0'}&udpsize=${escapeHtml(udpSize)}&nsid=${nsidEnable ? '1' : '0'}&mqtype=${escapeHtml(mQType)}`;
+        html += `&qmini=${qnameMinimisation ? '1' : '0'}&qposi=${qnamePosition}&qtype=${qnameType}>${displayData}</a>`;
+    return html;
+};
+
+const replaceUnknownRrTypeToKnown = (type) => {
+    switch (type) {
+        case 'UNKNOWN_63': return 'ZONEMD';
+        case 'UNKNOWN_64': return 'SVCB';
+        case 'UNKNOWN_65': return 'HTTPS';
+    }
+    return type;
+};
+
+const replaceKnownToUnknownRrType = (type) => {
+    switch (type) {
+        case 'ZONEMD': return 'UNKNOWN_63';
+        case 'SVCB': return 'UNKNOWN_64';
+        case 'HTTPS': return 'UNKNOWN_65';
+    }
+    return type;
+};
+
+const replaceUnknownRrTypeList = (rrtypes) => {
+    return rrtypes.map(item => {
+        return replaceUnknownRrTypeToKnown(item);
+    });
+};
+
+const decodeResourceRecord = (type, msg) => {
+    let displayData = '';
+    if (type === 'CAA') {
+        displayData = `flags: ${msg.flags}, tag: ${msg.tag}, value: ${msg.value}, issuerCritical: ${msg.issuerCritical}`;
+    } else if (type === 'DNSKEY') {
+        // dns-packet では DNSKEYリソースレコードの Protocol は 3 固定
+        displayData = `flags: ${msg.flags}, protocol: 3, algorithm: ${msg.algorithm}, key: ${msg.key.toString('base64')}`;
+    } else if (type === 'DS') {
+        displayData = `keyTag: ${msg.keyTag}, algorithm: ${msg.algorithm}, digestType: ${msg.digestType}, digest: ${msg.digest.toString('hex').toLowerCase()}`;
+    } else if (type === 'NSEC') {
+        const rrtypes = replaceUnknownRrTypeList(msg.rrtypes);
+        displayData = `nextDomain: ${msg.nextDomain}, rrtypes: ${rrtypes.join(' ')}`;
+    } else if (type === 'NSEC3') {
+        const rrtypes = replaceUnknownRrTypeList(msg.rrtypes);
+        displayData = `algorithm: ${msg.algorithm}, flags: ${msg.flags}, iterations: ${msg.iterations}, salt: ${msg.salt.toString('base64')}, `
+        displayData += `nextDomain: ${msg.nextDomain.toString('base64')}, rrtypes: ${rrtypes.join(' ')}`;
+    } else if (type === 'RRSIG') {
+        const expiration = new Date(msg.expiration * 1000);
+        const inception = new Date(msg.inception * 1000);
+        displayData = `typeCovered: ${msg.typeCovered}, algorithm: ${msg.algorithm}, labels: ${msg.labels}, originalTTL: ${msg.originalTTL}, expiration: ${expiration.toISOString()}, `;
+        displayData += `inception: ${inception.toISOString()}, keyTag: ${msg.keyTag}, signersName: ${msg.signersName}, signature: ${msg.signature.toString('base64')}`;
+    } else if (type === 'SOA') {
+        displayData = `mname: ${msg.mname}, rname: ${msg.rname}, serial: ${msg.serial}, refresh: ${msg.refresh}, retry: ${msg.retry}, expire: ${msg.expire}, minimum: ${msg.minimum}`;
+    } else if (type === 'SRV') {
+        displayData = `priority: ${msg.priority}, weight: ${msg.weight}, port: ${msg.port}, target: ${msg.target}`;
+    } else if (replaceUnknownRrTypeToKnown(type) === 'SVCB' || replaceUnknownRrTypeToKnown(type) === 'HTTPS' ) {
+        let offset = 0;
+        const priority = msg.readUInt16BE(offset);
+        offset += 2;
+
+        let startOffset = offset;
+        const labels = [];
+        while (true) {
+            const len = msg[startOffset];
+            startOffset += 1;
+            if (len === 0) break; // ヌルバイトで終了
+            const label = msg.toString('utf8', startOffset, startOffset + len);
+            labels.push(label);
+            startOffset += len;
+        }
+        const domainName = labels.length === 0 ? '.' : labels.join('.') + '.';
+
+        offset += startOffset - offset;
+        let paramString = '';
+        while (offset < msg.length) {
+            const paramKey = msg.readUInt16BE(offset);
+            offset += 2;
+            const paramLen = msg.readUInt16BE(offset);
+            offset += 2;
+            const paramValBuffer = msg.subarray(offset, offset + paramLen);
+            offset += paramLen;
+            switch (paramKey) {
+                case 1: // alpn (文字列のリスト。各文字列の前に1バイトの長さ)
+                    const alpnList = [];
+                    let idx = 0;
+                    while (idx < paramValBuffer.length) {
+                        const len = paramValBuffer[idx];
+                        idx += 1;
+                        alpnList.push(paramValBuffer.toString('utf8', idx, idx + len));
+                        idx += len;
+                    }
+                    paramString += `alpn=${alpnList}, `;
+                    break;
+                case 3: // port (2バイトの整数)
+                    paramString += `port=${paramValBuffer.readUInt16BE(0)}, `;
+                    break;
+                case 4:
+                    let ipv4List = [];
+                    for (let i = 0; i < paramValBuffer.length; i += 4) {
+                        const num = paramValBuffer.readUInt32BE(i); 
+                        const ipv4str = [
+                            (num >>> 24) & 255,
+                            (num >>> 16) & 255,
+                            (num >>> 8) & 255,
+                            num & 255
+                        ].join('.');
+                        ipv4List.push(ipv4str);
+                    }
+                    paramString += `ipv4hint=${ipv4List}, `;
+                    break;
+                case 5:
+                    paramString += `ech=${paramValBuffer.toString('hex')}, `;
+                    break;
+                case 6:
+                    let ipv6List = [];
+                    for (let i = 0; i < paramValBuffer.length; i += 16) {
+                        const hex = paramValBuffer.toString('hex', i);
+                        const blocks = [];
+                        for (let j = 0; j < 16; j += 2) {
+                            blocks.push(hex.slice(j * 2, j * 2 + 4));
+                        }
+                        const ipv6str = compressIPv6(blocks.join(':'));
+                        ipv6List.push(ipv6str);
+                    }
+                    paramString += `ipv6hint=${ipv6List}, `;
+                    break;
+                case 7:
+                    paramString += `dohpath=${paramValBuffer.toString('utf8')}, `;
+                    break;
+                default: // その他（echなど）はHex等で保持
+                    paramString += `other(${paramKey})=${paramValBuffer.toString('hex')}, `;
+            }
+        }
+        if (paramString.length > 2) {
+            paramString = paramString.slice(0, -2);
+        }
+        displayData = `priority: ${priority}, targetName: ${domainName}, params: [ ${paramString} ]`;
+    }
+    return displayData;
+}
+
+const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domainName, queryType, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType) => {
+    let html = '';
+    let questionName = '';
+    let questionType = '';
+
+    html += `<div class="result"><h3>--- DNSレスポンス解析結果 ---</h3>`;
+    html += `<p><strong>基本情報:</strong></p>`;
+    html += '<ul>';
+    html += `<li>応答サイズ: <code>${bytesRead}</code>byte</li>`;
+    html += `<li>応答したサーバー: <code>${dnsServer}</code></li>`;
+
+    if (response.questions && response.questions.length > 0) {
+        response.questions.forEach((question) => {
+            questionName = question.name;
+            questionType = replaceUnknownRrTypeToKnown(question.type);
+            html += `<li>クエリー名: <code>${questionName}</code></li>`;
+            html += `<li>クエリータイプ (type): <code>${questionType}</code></li>`;
+        });
+    }
+
+    // 応答コード (rcode) の取得と判別
+    const rcode = response.rcode;
+    html += `<li>応答ステータス (rcode): <code>${escapeHtml(rcode)}</code></li>`;
+
+    // フラグの取得
+    let flagString = '';
+    if (response.flags & dnsPacket.RECURSION_DESIRED) {
+        flagString += 'RD ';
+    }
+    if (response.flags & dnsPacket.RECURSION_AVAILABLE) {
+        flagString += 'RA ';
+    }
+    if (response.flags & dnsPacket.TRUNCATED_RESPONSE) {
+        flagString += 'TC ';
+    }
+    if (response.flags & dnsPacket.AUTHORITATIVE_ANSWER) {
+        flagString += 'AA ';
+    }
+    if (response.flags & dnsPacket.AUTHENTIC_DATA) {
+        flagString += 'AD ';
+    }
+    if (response.flags & dnsPacket.CHECKING_DISABLED) {
+        flagString += 'CD ';
+    }
+    if (flagString !== '') {
+        flagString = flagString.slice(0, -1);
+    }
+    html += `<li>フラグ (flags): <code>${escapeHtml(flagString)}</code></li>`;
+    if (response.flags & dnsPacket.TRUNCATED_RESPONSE) {
+        html += '<ul><li style="color: blue; margin: 0;">TCフラグが立っているので TCPでの再確認を推奨します。</li></ul>';
+    }
+    html += '</ul>';
+
+    // Answerセクションについて応答コードに応じた条件分岐
+    html += `<p><strong>ANSWER SECTION (${response.answers.length} 個) :</strong></p>`;
+    if (rcode === 'NXDOMAIN') {
+        html += `<p style="color: red; margin: 0;">NXDOMAIN: 問い合わせたドメイン名 <code>${questionName}</code> は存在しませんでした。</p>`;
+        if (qnameMinimisation) {
+            if (qnamePosition > 0) {
+                qnamePosition--;
+                displayData = addLinkToDisplayData(origin, pathname, dnsServer, domainName, queryType, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType, 'こちら');
+                if (response.authorities && response.authorities.length > 0) {
+                    const soaRr = response.authorities.find(at => at.type === 'SOA');
+                    if (soaRr) {
+                        if (soaRr.name !== questionName) {
+                            html += `<p style="color: red; margin: 0;">※RFC 8020違反の可能性があります。</p>`;
+                            html += `<p style="color: orange; margin: 0;">※Empty Non-Terminal かもしれません。${displayData} をクリックしてみてください。</p>`;
+                        } else {
+                            html += `<p style="color: orange; margin: 0;">※QNAME minimisation が有効になっていますので ${displayData} をクリックしてみてください。</p>`;
+                        }
+                    }
+                }
+            }
+        }
+    } else if (rcode === 'SERVFAIL') {
+        html += '<p style="color: red; margin: 0;">SERVFAIL: 対象のネームサーバーで一時的なエラーが発生したか、設定に問題があります。</p>';
+    } else if (rcode === 'REFUSED') {
+        html += '<p style="color: red; margin: 0;">REFUSED: ゾーン転送の拒否や、キャッシュサーバーのポリシーによりクエリーが拒否されました。</p>';
+    } else if (rcode === 'FORMERR') {
+        html += '<p style="color: red; margin: 0;">FORMERR: 送信したパケットの形式に問題があると判断されました。</p>';
+    } else if (rcode === 'NOERROR') {
+        // 正常応答の場合
+        if (!response.answers || response.answers.length === 0) {
+            // rcodeはNOERRORだが、該当レコードが空 (例: AAAAを引いたがAレコードしか持っていない場合など)
+            html += '<p style="color: green; margin: 0;">NOERROR: 指定されたタイプのレコード (回答) は見つかりませんでした。</p>';
+            if (qnameMinimisation) {
+                if (qnamePosition > 0) {
+                    qnamePosition--;
+                    displayData = addLinkToDisplayData(origin, pathname, dnsServer, domainName, queryType, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType, 'こちら');
+                    if (response.authorities && response.authorities.length > 0) {
+                        const soaRr = response.authorities.find(at => at.type === 'SOA');
+                        if (soaRr) {
+                            if (soaRr.name !== questionName) {
+                                html += `<p style="color: orange; margin: 0;">※Empty Non-Terminal かもしれません。${displayData} をクリックしてみてください。</p>`;
+                            } else {
+                                html += `<p style="color: orange; margin: 0;">※QNAME minimisation が有効になっていますので ${displayData} をクリックしてみてください。</p>`;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        html += `<p style="color: gray; margin: 0;">その他の応答コード: ${escapeHtml(rcode)}</p>`;
+    }
+    if (response.answers && response.answers.length > 0) {
+        html += '<ul>';
+        if (qnameMinimisation && qnamePosition > 0) {
+            qnamePosition--;
+        }
+        response.answers.forEach((answer) => {
+            let displayData = decodeResourceRecord(answer.type, answer.data);
+            if (displayData.length === 0) {
+                if (answer.type === 'TXT') {
+                    // TXTレコードはBufferまたは'text'の配列か、Bufferか'text'で返ってくる
+                    if (Array.isArray(answer.data)) {
+                        displayData = escapeHtml(answer.data.map(buf => Buffer.isBuffer(buf) ? buf.toString('utf8') : buf).join(''));
+                    } else if (Buffer.isBuffer(answer.data)) {
+                        displayData = escapeHtml(answer.data.toString('utf8'));
+                    } else {
+                        displayData = escapeHtml(answer.data);
+                    }
+                } else if (answer.type === 'CNAME') {
+                    // CNAMEレコードはデータを検索対象ドメイン名として扱い、後続の検索ができるようにする
+                    displayData = addLinkToDisplayData(origin, pathname, 'a.root-servers.net', answer.data, queryType, false, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, 255, qnameType, answer.data);
+                } else if (answer.type === 'NS') {
+                    if (qnameMinimisation) {
+                        if (answer.name === domainName) {
+                            displayData = addLinkToDisplayData(origin, pathname, 'a.root-servers.net', answer.data, 'A', false, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, 255, qnameType, answer.data);
+                        } else {
+                            displayData = addLinkToDisplayData(origin, pathname, answer.data, domainName, queryType, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType, answer.data);
+                        }
+                    } else {
+                        // NSが、自身の IPアドレスの情報を持っていない場合がある (例： ns014-fc9tjt3ao0p42dr4.f.d-53.info)
+                        displayData = addLinkToDisplayData(origin, pathname, 'a.root-servers.net', answer.data, 'A', false, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, 255, qnameType, answer.data);
+                    }
+                } else if (answer.type === 'MX') {
+                    displayData = `preference: ${answer.data.preference}, exchange: `;
+                    displayData += addLinkToDisplayData(origin, pathname, 'a.root-servers.net', answer.data.exchange, 'A', false, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, 255, qnameType, answer.data.exchange);
+                } else if (typeof answer.data === 'object') {
+                    // オブジェクト構造を持つデータ用
+                    displayData = escapeHtml(JSON.stringify(answer.data));
+                } else {
+                    // Aレコード (文字列のIPアドレス) など通常データ用
+                    displayData = escapeHtml(answer.data);
+                }
+            }
+            const answerType = replaceUnknownRrTypeToKnown(escapeHtml(answer.type));
+            html += `<li><strong>[${answerType}]</strong> ${escapeHtml(answer.name)} &rarr; <code>${displayData}</code> (TTL: ${parseInt(answer.ttl, 10)}秒)</li>`;
+        });
+        html += '</ul>';
+    }
+
+    // Authorityが返ってきた場合
+    html += `<p><strong>AUTHORITY SECTION (${response.authorities.length} 個) :</strong></p>`;
+    if (response.authorities && response.authorities.length > 0) {
+        html += '<ul>';
+        response.authorities.forEach((authorities) => {
+            let displayData = decodeResourceRecord(authorities.type, authorities.data);
+            if (displayData.length === 0) {
+                if (authorities.type === 'NS') {
+                    displayData = addLinkToDisplayData(origin, pathname, authorities.data, domainName, queryType, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType, authorities.data);
+                } else if (typeof authorities.data === 'object') {
+                    // オブジェクト構造を持つデータ用
+                    displayData = escapeHtml(JSON.stringify(authorities.data));
+                } else {
+                    // Aレコード (文字列のIPアドレス) など通常データ用
+                    displayData = escapeHtml(authorities.data);
+                }
+            }
+            const authoritiesType = replaceUnknownRrTypeToKnown(escapeHtml(authorities.type));
+            html += `<li><strong>[${authoritiesType}]</strong> ${escapeHtml(authorities.name)} &rarr; <code>${displayData}</code> (TTL: ${parseInt(authorities.ttl, 10)}秒)</li>`;
+        });
+        html += '</ul>';
+    } else {
+        html += '<p style="color: orange; margin: 0;">権威サーバーの情報は見つかりませんでした。</p>';
+    }
+
+    // Additionalが返ってきた場合
+    html += `<p><strong>ADDITIONAL SECTION (${response.additionals.length} 個) :</strong></p>`;
+    if (response.additionals && response.additionals.length > 0) {
+        let optPseudo = '';
+        let optError = '';
+        html += '<ul>';
+        response.additionals.forEach((additionals) => {
+            let displayData = decodeResourceRecord(additionals.type, additionals.data);
+            if (displayData.length === 0) {
+                if (additionals.type === 'A' || additionals.type === 'AAAA') {
+                    displayData = addLinkToDisplayData(origin, pathname, additionals.data, domainName, queryType, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType, additionals.data);
+                } else if (additionals.type === 'OPT') {
+                    if (additionals.name === '.') {
+                        // EDNS0
+                        const optRecord = additionals;
+                        let flagString = '';
+                        let nsidString = '';
+                        let edeString = '';
+                        let mQTypeString = '';
+                        if (optRecord.flags & dnsPacket.DNSSEC_OK) {
+                            flagString = 'DO';
+                        }
+                        for (const option of optRecord.options) {
+                            if (option.code === 3 && option.data.length > 0) {
+                                nsidString = `${option.data.toString('utf-8')} (${option.data.toString('hex')})`;
+                            }
+                            if (option.code === 15 && Buffer.isBuffer(option.data)) {
+                                const buffer = option.data;
+                                if (buffer.length < 2) continue;
+
+                                const infoCode = buffer.readUInt16BE(0);
+                                const errorName = EDE_ERRORS[infoCode] || 'Unknown Error';
+                                edeString = `${infoCode} (${errorName})`;
+
+                                if (buffer.length > 2) {
+                                    const extraText = buffer.toString('utf8', 2);
+                                    edeString += `: (${extraText})`;
+                                }
+                            }
+                            if (option.code === 21 && Buffer.isBuffer(option.data)) {
+                                const buffer = option.data;
+                                if (buffer.length < 2) continue;
+                                
+                                const length  = buffer.readUInt16BE(0);	// Size (in octets) of OPTION-DATA
+                                for (let offset = 0; offset < lenght; offset += 2) {
+                                    const type = buffer.readUInt16BE(offset + 2);
+                                    mQTypeString += `dnsTypes.toString(type),`;
+                                }
+                                if (mQTypeString !== '') {
+                                    mQTypeString = mQTypeString.slice(0, -1);
+                                }
+                            }
+                        }
+                        optPseudo = `<li><strong>[EDNS]</strong> <code>Version: 0, flags: ${flagString}, UDP payload size: ${optRecord.udpPayloadSize}</code></li>`;
+                        if (nsidString !== '') {
+                            optPseudo += `<li><strong>[NSID]</strong> <code>${nsidString}</code></li>`;
+                        }
+                        if (edeString !== '') {
+                            optPseudo += `<li><strong>[EDE]</strong> <code>${edeString}</code></li>`;
+                        }
+                        if (mQTypeString !== '') {
+                            optPseudo += `<li><strong>[MQTYPE-Response]</strong> <code>${mQTypeString}</code></li>`;
+                        }
+                    } else {
+                        optError = `<p style="color: red; margin: 0;">不明なオプション情報です。(name: ${additionals.name})</p>`;
+                    }
+                } else if (typeof additionals.data === 'object') {
+                    // オブジェクト構造を持つデータ用
+                    displayData = escapeHtml(JSON.stringify(additionals.data));
+                } else {
+                    // 通常データ用
+                    displayData = escapeHtml(additionals.data);
+                }
+            }
+            if (additionals.type !== 'OPT') {
+                // EDNS0 は下で表示する
+                const additionalsType = replaceUnknownRrTypeToKnown(escapeHtml(additionals.type));
+                html += `<li><strong>[${additionalsType}]</strong> ${escapeHtml(additionals.name)} &rarr; <code>${displayData}</code> (TTL: ${parseInt(additionals.ttl, 10)}秒)</li>`;
+            }
+        });
+        html += '</ul>';
+        if (optPseudo.length > 0) {
+            if (response.additionals.length === 1) {
+                html += '<p style="color: orange; margin: 0;">追加の情報は見つかりませんでしたがオプション情報が見つかりました。</p>';
+            }
+            html += `<p><strong>OPT PSEUDOSECTION:</strong></p>`;
+            html += `<ul>${optPseudo}</ul>`;
+            if (optError.length > 0) {
+                html += optError;
+            }
+        }
+    } else {
+        html += '<p style="color: orange; margin: 0;">追加の情報は見つかりませんでした。</p>';
+    }
+
+    html += '</div>';
+
+    return html;
+};
+
+const compressIPv6 = (ip) => {
+    // まず、各オクテットの先頭にある'0'を取り除く ('0000'の場合は'0'に置き換える)
+    let output = ip.split(':').map(terms => terms.replace(/\b0+/g, '') || '0').join(":");
+
+    // 次に、'0'のオクテットが連続している箇所をすべて検索する
+    let zeros = [...output.matchAll(/\b:?(?:0+:?){2,}/g)];
+
+    // 該当箇所がある場合は、最も長いものを特定し、それを'::'に置き換える
+    if (zeros.length > 0) {
+        let max = '';
+        zeros.forEach(item => {
+            if (item[0].replaceAll(':', '').length > max.replaceAll(':', '').length) {
+                max = item[0];
+            }
+        })
+        output = output.replace(max, '::');
+    }
+    return output;
+};
+
+const isIpv6Loopback = (ip) => {
+    if (!isValidIPv6(ip)) {
+        return false;
+    }
+
+    if (compressIPv6(ip) === '::1') {
+        return true;
+    }
+    return false;
+};
+
+const isValidIPv6 = (ip) => {
+    const ipv6Regex = /^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|([0-9a-fA-F]{1,4}:){1,6}(:[0-9a-fA-F]{1,4}){1,6}|([0-9a-fA-F]{1,4}:){1,1}(:[0-9a-fA-F]{1,4}){1,7}|:|:(:[0-9a-fA-F]{1,4}){1,7}|::)$/;
+    return ipv6Regex.test(ip);
+}
+
+const isValidIPv4 = (ip) => {
+    const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
+    if (!ipv4Regex.test(ip)) return false;
+
+    // 各セクションが0～255の範囲に収まっているかチェック
+    return ip.split('.').every(num => parseInt(num, 10) >= 0 && parseInt(num, 10) <= 255);
+}
+
+const server = http.createServer((req, res) => {
+    if (req.url === '/favicon.ico') {
+        res.writeHead(204);
+        res.end();
+        return;
+    }
+
+    // WHATWG URL API を使用、req.url は相対パスのため第2引数にダミーのベースURLを設定
+    const parsedUrl = new URL(req.url, `http://${req.headers.host}/`);
+    const params = parsedUrl.searchParams;
+
+    // .get() メソッドでパラメータを取得
+    const rawDnsServer = params.get('server') || 'a.root-servers.net';
+    const rawDomainName = params.get('name') || '';
+    const rawQueryType = params.get('type') || 'A';
+    const recursionDesired = params.get('rd') === '1';
+    const qnameMinimisation = params.get('qmini') === '1';
+    const rawQnamePosition = params.get('qposi') || '255';
+    const rawQnameType = params.get('qtype') || 'A';
+    const edns0Enable = params.get('edns0') === '1';
+    const dnssecOk = params.get('dnssec') === '1';
+    const rawUdpSize = params.get('udpsize') || '1232';
+    const nsidEnable = params.get('nsid') === '1';
+    const rawMQtype = params.get('mqtype') || '';
+    const sendTcp = params.get('tcp') === '1';
+    const sendIpv6 = params.get('ipv6') === '1';
+
+    // 画面表示用にすべての入力値をエスケープ (サニタイズ)
+    const dnsServer = escapeHtml(rawDnsServer.trim());
+    let domainName = escapeHtml(rawDomainName.trim());
+    const queryType = escapeHtml(rawQueryType);
+    let qnamePosition = escapeHtml(rawQnamePosition.trim());
+    const qnameType = escapeHtml(rawQnameType) === 'NS' ? 'NS' : 'A';
+    const udpSize = escapeHtml(rawUdpSize.trim());
+    const mQType = escapeHtml(rawMQtype.trim());
+
+    // HTML (フォーム部分) の構築
+    let html = `
+        <!DOCTYPE html>
+        <html lang="ja">
+        <head>
+            <meta charset="UTF-8">
+            <title>DNSクエリー送信ツール</title>
+            <style>
+                body { font-family: sans-serif; margin: 0; padding: 20px; background: #f4f6f9; color: #333; }
+                .container { max-width: 800px; margin: 0 auto; padding: 25px; background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+                div { margin-bottom: 10px; }
+                label { display: inline-block; font-weight: bold; }
+                .label-wide { width: 220px; }
+                .label-narrow { width: 194px; }
+                input[type="text"], select { padding: 5px; box-sizing: border-box; }
+                .input-wide { width: 250px; }
+                .input-narrow { width: 60px; }
+                input[type="submit"] { padding: 8px 25px; cursor: pointer; background: #007BFF; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; }
+                input[type="submit"]:hover { background: #0056b3; }
+                .result { margin-top: 30px; padding: 15px; border-radius: 6px; background: #f0f0f0; border-left: 6px solid #007BFF; white-space: pre; overflow-x: scroll; }
+                .error { border-color: red; background: #fff0f0; }
+                .explanation { font-size: 90%; }
+                ul { padding-left: 20px; }
+                code { background: #e0e0e0; padding: 2px 5px; border-radius: 4px; font-family: monospace; }
+            </style>
+        </head>
+        <body>
+        <div class="container">
+            <h2>🔍 <a href=${parsedUrl.origin}${parsedUrl.pathname}>DNSクエリー送信ツール</a></h2>
+            <form id="search" action="search" method="GET">
+                <div>
+                    <label for="server" class="label-wide">クエリー先DNSサーバー:</label>
+                    <input type="text" class="input-wide" id="server" name="server" value="${dnsServer}" placeholder="a.root-servers.net">
+                </div>
+                <div>
+                    <label for="name" class="label-wide">対象ドメイン名 (name):</label>
+                    <input type="text" class="input-wide" id="name" name="name" value="${domainName}" placeholder="example.com" autofocus>
+                </div>
+                <div>
+                    <label for="type" class="label-wide">クエリータイプ (type):</label>
+                    <select id="type" name="type">
+                        <option value="A" ${queryType === 'A' ? 'selected' : ''}>A (IPv4 address)</option>
+                        <option value="AAAA" ${queryType === 'AAAA' ? 'selected' : ''}>AAAA (IPv6 address)</option>
+                        <option value="MX" ${queryType === 'MX' ? 'selected' : ''}>MX (Mail Exchange)</option>
+                        <option value="NS" ${queryType === 'NS' ? 'selected' : ''}>NS (Name Server)</option>
+                        <option value="SOA" ${queryType === 'SOA' ? 'selected' : ''}>SOA (Start Of Authority)</option>
+                        <option value="TXT" ${queryType === 'TXT' ? 'selected' : ''}>TXT (Text)</option>
+                        <option value="CNAME" ${queryType === 'CNAME' ? 'selected' : ''}>CNAME (Canonical Name)</option>
+                        <option value="DNAME" ${queryType === 'DNAME' ? 'selected' : ''}>DNAME (Delegation Name)</option>
+                        <option value="CAA" ${queryType === 'CAA' ? 'selected' : ''}>CAA (Certification Authority Authorization)</option>
+                        <option value="DNSKEY" ${queryType === 'DNSKEY' ? 'selected' : ''}>DNSKEY</option>
+                        <option value="DS" ${queryType === 'DS' ? 'selected' : ''}>DS (Delegation Signer)</option>
+                        <option value="NSEC" ${queryType === 'NSEC' ? 'selected' : ''}>NSEC (NextSECure record)</option>
+                        <option value="NSEC3" ${queryType === 'NSEC3' ? 'selected' : ''}>NSEC3</option>
+                        <option value="RRSIG" ${queryType === 'RRSIG' ? 'selected' : ''}>RRSIG (Resource Record Signature)</option>
+                        <option value="SRV" ${queryType === 'SRV' ? 'selected' : ''}>SRV (Service)</option>
+                        <option value="HTTPS" ${queryType === 'HTTPS' ? 'selected' : ''}>HTTPS</option>
+                        <option value="SVCB" ${queryType === 'SVCB' ? 'selected' : ''}>SVCB (Service Binding)</option>
+                        <option value="PTR" ${queryType === 'PTR' ? 'selected' : ''}>PTR (Pointer)</option>
+                        <option value="ANY" ${queryType === 'ANY' ? 'selected' : ''}>ANY</option>
+                        <option value="VERSION" ${queryType === 'VERSION' ? 'selected' : ''}>VERSION (CHAOS/TXT/version.bind)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="label-wide">再帰の要求 (RDフラグ):</label>
+                    <input type="checkbox" id="rd" name="rd" value="1" ${recursionDesired ? 'checked' : ''}>
+                    <label for="rd" style="font-weight:normal; width:auto;">(クエリー先がフルサービスリゾルバーのときは有効にする)</label>
+                </div>
+                <div>
+                    <label class="label-wide">QNAME minimisation:</label>
+                    <input type="checkbox" id="qmini" name="qmini" value="1" ${qnameMinimisation ? 'checked' : ''}>
+                    <label for="qmini" style="font-weight:normal; width:auto;">(クエリータイプ: </label>
+                    <label style="font-weight:normal; width:auto;"><input type="radio" id="qtype" name="qtype" value="A" ${qnameType === 'A' ? 'checked' : ''}>A (RFC 9156)</label>
+                    <label style="font-weight:normal; width:auto;"><input type="radio" id="qtype" name="qtype" value="NS" ${qnameType === 'A' ? '' : 'checked'}>NS (RFC 7816)</label>
+                    )
+                </div>
+                <div>
+                    <input type="hidden" class="input-wide" id="qposi" name="qposi" value="${qnamePosition}" placeholder="0">
+                </div>
+                <div style="margin-bottom: 5px;">
+                    <label class="label-wide">EDNS0の付与:</label>
+                    <input type="checkbox" id="edns0" name="edns0" value="1" ${edns0Enable ? 'checked' : ''}>
+                    <label for="edns0" style="font-weight:normal; width:auto;">(RFC 6891)</label>
+                </div>
+                <div style="background-color: #e0e0ff; margin: 5px 5px 10px 10px; padding: 5px 10px 5px 15px; border: 1px solid #ccc; border-radius: 8px;">
+                    <div style="margin: 5px 0px;">
+                        <label class="label-wide">DNSSEC情報の要求:</label>
+                        <input type="checkbox" id="dnssec" name="dnssec" value="1" ${dnssecOk ? 'checked' : ''}>
+                        <label for="dnssec" style="font-weight:normal; width:auto;">DNSSEC OK (DO) フラグを立てる</label>
+                    </div>
+                    <div style="margin: 5px 0px;">
+                        <label class="label-wide">UDPメッセージサイズ:</label>
+                        <input type="text" class="input-narrow" id="udpsize" name="udpsize" value="${udpSize}" placeholder="1232" required>
+                        <label for="udpsize" style="font-weight:normal; width:auto;">byte</label>
+                    </div>
+                    <div style="margin: 5px 0px;">
+                        <label class="label-wide">NSIDの要求:</label>
+                        <input type="checkbox" id="nsid" name="nsid" value="1" ${nsidEnable ? 'checked' : ''}>
+                        <label for="nsid" style="font-weight:normal; width:auto;">(RFC 5001)</label>
+                    </div>
+                    <div style="margin: 5px 0px;">
+                        <label class="label-wide">MQTYPE-Query:</label>
+                        <input type="text" class="input-wide" id="mqtype" name="mqtype" value="${mQType}" placeholder="AAAA,TXT">
+                        <label for="mqtype" style="font-weight:normal; width:auto;">(RFC 10029) <b><span style="color: red;">※未テスト</span></b></label>
+                    </div>
+                </div>
+                <div>
+                    <label class="label-wide">TCP送受信:</label>
+                    <input type="checkbox" id="tcp" name="tcp" value="1" ${sendTcp ? 'checked' : ''}>
+                    <label for="tcp" style="font-weight:normal; width:auto;">(レスポンスに TCフラグが立っていたときは有効にする)</label>
+                </div>
+                <div>
+                    <label class="label-wide">IPv6送受信:</label>
+                    <input type="checkbox" id="ipv6" name="ipv6" value="1" ${sendIpv6 ? 'checked' : ''}>
+                    <label for="ipv6" style="font-weight:normal; width:auto;">(UDP送受信の際に IPv6で接続したいときは有効にする)</label>
+                </div>
+                <div>
+                    <input type="submit" value="DNSパケットを送信">
+                </div>
+            </form>
+    `;
+
+    // 初期アクセス時はフォームだけ表示して終了
+    if (queryType === 'VERSION') {
+        domainName = 'version.bind';
+    }
+    if (!domainName || !dnsServer) {
+        html += `<h3>説明</h3>`
+        html += `<div class="explanation">`
+        html += `<p>digコマンドや drillコマンドのように DNSクエリーを送信し、受信した内容を表示します。</p>`
+        html += `<p>■デフォルトでは<b><a href="https://jprs.jp/glossary/index.php?ID=0158" target="_blank">フルサービスリゾルバー</a></b>の動作 (処理) を<b>体験</b>できるようになっています。`
+        html +=     `<ol><li><b>「対象ドメイン名」を入力</b>して<b>「送信」</b>してください。</li>`
+        html +=         `<ul><li><a href="https://jprs.jp/glossary/index.php?ID=0152" target="_blank">委任</a>を辿りたい (非再帰検索/反復検索を体験したい) ときは、AUTHORITYや ADDITIONALの情報に含まれるドメイン名 (NS) や IPアドレス (A, AAAA) をクリックしてください。</li>`
+        html +=         `</ul>`
+        html +=     `<li>「クエリー先DNSサーバー」はデフォルトでは「a.root-servers.net」が設定されていますが、別の<a href="https://jprs.jp/glossary/index.php?ID=0145">権威サーバー</a>を指定することもできます。</li>`
+        html +=     `</ol>`
+        html += `</p>`
+        html += `<p>■<b><a href="https://jprs.jp/glossary/index.php?ID=0197" target="_blank">スタブリゾルバー</a></b>の動作 (処理) も<b>体験</b>することができます。`
+        html +=     `<ol><li>「クエリー先DNSサーバー」に<a href="https://jprs.jp/glossary/index.php?ID=0158" target="_blank">フルサービスリゾルバー</a>のIPアドレスを入力し、</li>`
+        html +=         `<li>「対象ドメイン名」を入力して、</li>`
+        html +=         `<li>「RDフラグ」にチェックを入れて、</li>`
+        html +=         `<li>「送信」してください。</li>`
+        html +=         `<ul><li><a href="https://jprs.jp/glossary/index.php?ID=0084" target="_blank">名前解決</a>は入力した<a href="https://jprs.jp/glossary/index.php?ID=0158" target="_blank">フルサービスリゾルバー</a>が代わりにやってくれますので、これ以上の操作は不要です。</li></ul>`
+        html +=     `</ol>`
+        html += `</p>`
+        html += `<p>※DNSSECの検証はしません。</p>`
+        html += `</div>`
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(html + '</div></body></html>');
+        return;
+    }
+
+    // 対象ドメイン名としてURLが渡された場合の変換
+    try {
+        const urlObj = new URL(domainName);
+        if (urlObj && urlObj.hostname) {
+            domainName = urlObj.hostname;
+        }
+    } catch (e) {
+    }
+
+    // クエリータイプのホワイトリストチェック
+    const allowedTypes = ['A', 'AAAA', 'MX', 'NS', 'SOA', 'TXT', 'CNAME', 'DNAME', 'CAA', 'DNSKEY', 'DS', 'NSEC', 'NSEC3', 'RRSIG', 'SRV', 'HTTPS', 'SVCB', 'PTR', 'ANY', 'VERSION'];
+    if (!allowedTypes.includes(queryType)) {
+        html += `<div class="result error"><p>エラー: 不正なクエリータイプです。</p></div>`;
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(html + '</div></body></html>');
+        return;
+    }
+
+    // 対象DNSサーバーのチェック
+    const rejectedServer = ['localhost', '127.0.0.1'];
+    if (rejectedServer.includes(dnsServer) || isIpv6Loopback(dnsServer) || dnsServer.startsWith("192.168.")) {
+        html += `<div class="result error"><p>エラー: DNSサーバー (${dnsServer}) を選択し直してください。</p></div>`;
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(html + '</div></body></html>');
+        return;
+    }
+
+    // UDP Payload Sizeのチェック
+    if (!Number.isInteger(Number(udpSize)) || udpSize < 512 || 65535 < udpSize) {
+        html += `<div class="result error"><p>エラー: UDPメッセージサイズを入力し直してください。</p></div>`;
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(html + '</div></body></html>');
+        return;
+    }
+
+    // DNSクエリーパケットの構築
+    let qType = replaceKnownToUnknownRrType(queryType);
+    let qClass = 'IN';
+    let qName = domainName;
+    if (queryType === 'VERSION') {
+        qType = 'TXT';
+        qClass = 'CH';
+    }
+    if (qnameMinimisation) {
+        let parsedQName = domainName.split('.');
+        if (!Number.isInteger(Number(qnamePosition))) {
+            html += `<div class="result error"><p>エラー: QNAME minimisationを無効にして試してください。</p></div>`;
+            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(html + '</div></body></html>');
+            return;
+        }
+        if (qnamePosition < 0 || parsedQName.length <= qnamePosition) {
+            qnamePosition = parsedQName.length - 1;
+        }
+        if (qnamePosition > 0) {
+            // 例えば parsedQName -> [ 'www', 'example', 'com' ] とすると
+            // parsedQName.length` は 3 であり qnamePosition は 0 から 2 までの数字になる
+            qName = '';
+            for (let i = 0; i < parsedQName.length; i++) {
+                // もし qnamePosition が 1 の場合、'www' が除去される
+                if (i < qnamePosition) {
+                    continue;
+                }
+                qName += `${parsedQName[i]}.`;
+            }
+            // 最後の '.' を除去する
+            if (qName !== '') {
+                qName = qName.slice(0, -1);
+            }
+            qType = qnameType;	// RFC 9156 -> A, RFC 7816 -> NS
+        }
+    }
+    let queryPacket = {
+        type: 'query',
+        id: Math.floor(Math.random() * 65535),
+        flags: recursionDesired ? dnsPacket.RECURSION_DESIRED : 0,
+        questions: [{
+            type: qType,
+            class: qClass,
+            name: qName
+        }]
+    };
+    if (edns0Enable) {
+        const edns0Option = {
+            type: 'OPT',
+            name: '.',
+            udpPayloadSize: udpSize,
+            flags: dnssecOk ? dnsPacket.DNSSEC_OK : 0
+        };
+        if (nsidEnable) {
+            const option = { code: 3, data: Buffer.alloc(0) };
+            if (typeof edns0Option.options === "undefined") {
+                edns0Option.options = new Array();
+            }
+            edns0Option.options.push(option);
+        }
+        if (mQType !== '') {
+            const mQTypeArray = mQType.split(',');
+            const mQlength = mQTypeArray.length * 2;
+            const option = { code: 20, length: Buffer.alloc(2), data: Buffer.alloc(mQlength) };
+            option.length = mQlength;
+            let offset = 0;
+            for (const type of mQTypeArray) {
+                option.data.writeUInt16BE(dnsTypes.toType(type), offset);
+                offset += 2;
+            }
+            if (typeof edns0Option.options === "undefined") {
+                edns0Option.options = new Array();
+            }
+            edns0Option.options.push(option);
+        }
+        if (typeof queryPacket.additionals === "undefined") {
+            queryPacket.additionals = new Array();
+        }
+        queryPacket.additionals.push(edns0Option);
+    }
+
+    let buf;
+    try {
+        if (!sendTcp) {
+            buf = dnsPacket.encode(queryPacket);
+        } else {
+            buf = dnsPacket.streamEncode(queryPacket);
+        }
+    } catch (e) {
+        html += `<div class="result error"><p>エラー: 入力されたドメイン名の形式が正しくありません。</p></div>`;
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(html + '</div></body></html>');
+        return;
+    }
+
+    if (sendTcp) {
+        let resultHtml = '';
+        let expectedLength = 0
+        let receivedBuffer = null
+
+        // TCPソケットを作成して送信
+        const tcpClient = new net.Socket();
+
+        tcpClient.connect(53, dnsServer, () => {
+            tcpClient.write(buf);
+        });
+
+        tcpClient.on('data', data => {
+            // TCPの場合、アプリケーションへはいくつかの区切りで転送される (イベントが発生する) ので、受信バッファー (receivedBuffer) は外に確保しておく
+            if (receivedBuffer == null) {
+                if (data.byteLength > 1) {
+                    const plen = data.readUInt16BE(0);
+                    expectedLength = plen + 2;	// TCPペイロードの中の DNSメッセージの先頭 2バイトに DNSメッセージのサイズが格納されているので、その分を足す
+                    if (plen < 12) {
+                        html += `<div class="result" style="border-color:orange;"><p>警告：DNSで期待されるパケットサイズ未満でした: ${plen}</p></div>`;
+                    }
+                    receivedBuffer = Buffer.from(data);
+                }
+            } else {
+                receivedBuffer = Buffer.concat([receivedBuffer, data]);
+            }
+
+            if (receivedBuffer.byteLength >= expectedLength) {
+                try {
+                    const response = dnsPacket.streamDecode(receivedBuffer);
+                    const bytesRead = dnsPacket.streamDecode.bytes;
+                    resultHtml += makeHtmlFromDns(response, bytesRead, parsedUrl.origin, parsedUrl.pathname, dnsServer, domainName, queryType, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType);
+                } catch (err) {
+                    html += `<div class="result error"><p>エラー: パケットの解析に失敗しました: ${escapeHtml(err.message)}</p></div>`;
+                } finally {
+                    tcpClient.end();	// AWS (Route 53) は、TCPリソース解放をすぐに行う目的で DNSデータの送信後に RSTを送ってくるので、end() では read ECONNRESET が発生してしまう
+                }
+            }
+        });
+
+        tcpClient.on('error', (err) => {
+            html += `<div class="result error"><p>エラー: TCP通信に失敗しました: ${escapeHtml(err.message)}</p></div>`;
+            // このイベントの直後に、'close'イベントが呼び出される
+        });
+
+        tcpClient.on('close', (hadError) => {
+            if (!hadError || resultHtml !== '') {
+                html += resultHtml;
+            }
+            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(html + '</div></body></html>');
+        });
+    } else {
+        let isResponded = false;
+        var udpClient;
+
+        // UDPソケットを作成して送信
+        if (isValidIPv6(dnsServer) || sendIpv6) {
+            udpClient = dgram.createSocket('udp6');
+        } else {
+            udpClient = dgram.createSocket('udp4');
+        }
+
+        // タイムアウト処理 (5秒間応答がない場合は通信を打ち切る)
+        const timeoutId = setTimeout(() => {
+            if (!isResponded) {
+                html += `<div class="result error"><p>タイムアウト: サーバー <strong>${dnsServer}</strong> から応答がありませんでした。</p>`;
+                if (qnameMinimisation) {
+                    html += `<p>問い合わせたドメイン名は <strong>${qName}</strong> でした。QNAME minimisationを無効にして試してください。</p>`;
+                }
+                html += `</div>`;
+                res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+                res.end(html + '</div></body></html>');
+                udpClient.close();
+            }
+        }, 5000);
+
+        udpClient.on('message', (msg) => {
+            isResponded = true;
+            clearTimeout(timeoutId);
+
+            try {
+                const response = dnsPacket.decode(msg);
+                const bytesRead = dnsPacket.decode.bytes;
+                html += makeHtmlFromDns(response, bytesRead, parsedUrl.origin, parsedUrl.pathname, dnsServer, domainName, queryType, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType);
+            } catch (err) {
+                html += `<div class="result error"><p>エラー: パケットの解析に失敗しました: ${escapeHtml(err.message)}</p></div>`;
+            } finally {
+                res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+                res.end(html + '</div></body></html>');
+                udpClient.close();
+            }
+        });
+
+        udpClient.on('error', (err) => {
+            isResponded = true;
+            clearTimeout(timeoutId);
+            html += `<div class="result error"><p>エラー: UDP通信に失敗しました: ${escapeHtml(err.message)}</p></div>`;
+            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(html + '</div></body></html>');
+            udpClient.close();
+        });
+
+        // 指定されたサーバーIPの53番ポートへ送信
+        udpClient.send(buf, 0, buf.length, 53, dnsServer, (err) => {
+            if (err) {
+                isResponded = true;
+                clearTimeout(timeoutId);
+                html += `<div class="result error"><p>エラー: 送信に失敗しました: ${escapeHtml(err.message)}</p></div>`;
+                res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+                res.end(html + '</div></body></html>');
+                udpClient.close();
+            }
+        });
+    }
+});
+
+const PORT = 3000;
+server.listen(PORT, () => {
+    console.log(`Webサーバーが起動しました: http://localhost:${PORT}`);
+});
+
+server.on('error', (err) => {
+    console.error(`Webサーバーエラー: ${err.message}`);
+});

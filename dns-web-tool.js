@@ -622,7 +622,7 @@ const server = http.createServer((req, res) => {
                     <label class="label-wide">QNAME minimisation:</label>
                     <input type="checkbox" id="qmini" name="qmini" value="1" ${qnameMinimisation ? 'checked' : ''}>
                     <label for="qmini" style="font-weight:normal; width:auto;">(クエリータイプ: </label>
-                    <label style="font-weight:normal; width:auto;"><input type="radio" id="qtype" name="qtype" value="A" ${qnameType === 'A' ? 'checked' : ''}>A (RFC 9156)</label>
+                    <label style="font-weight:normal; width:auto;"><input type="radio" id="qtype" name="qtype" value="A" ${qnameType === 'A' ? 'checked' : ''}>A/AAAA (RFC 9156)</label>
                     <label style="font-weight:normal; width:auto;"><input type="radio" id="qtype" name="qtype" value="NS" ${qnameType === 'A' ? '' : 'checked'}>NS (RFC 7816)</label>
                     ) / ${resetQMiniHtml}
                 </div>
@@ -781,7 +781,9 @@ const server = http.createServer((req, res) => {
             if (qName !== '.' && qName.endsWith('.')) {
                 qName = qName.slice(0, -1);	// 最後の '.' を削除
             }
-            qType = qnameType;	// RFC 9156 -> A, RFC 7816 -> NS
+            if ((qnameType === 'A' && qType === 'AAAA') !== true) {
+                qType = qnameType;	// RFC 9156 -> A/AAAA, RFC 7816 -> NS
+            }
         }
     }
     let queryPacket = {

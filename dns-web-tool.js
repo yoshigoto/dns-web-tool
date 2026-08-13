@@ -548,6 +548,8 @@ const server = http.createServer((req, res) => {
     const udpSize = escapeHtml(rawUdpSize.trim());
     const mQType = escapeHtml(rawMQtype.trim());
 
+    const resetQMiniHtml = addLinkToDisplayData(parsedUrl.origin, parsedUrl.pathname, 'a.root-servers.net', domainName, queryType, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, '255', qnameType, 'リセット');
+
     // HTML (フォーム部分) の構築
     let html = `
         <!DOCTYPE html>
@@ -622,7 +624,7 @@ const server = http.createServer((req, res) => {
                     <label for="qmini" style="font-weight:normal; width:auto;">(クエリータイプ: </label>
                     <label style="font-weight:normal; width:auto;"><input type="radio" id="qtype" name="qtype" value="A" ${qnameType === 'A' ? 'checked' : ''}>A (RFC 9156)</label>
                     <label style="font-weight:normal; width:auto;"><input type="radio" id="qtype" name="qtype" value="NS" ${qnameType === 'A' ? '' : 'checked'}>NS (RFC 7816)</label>
-                    )
+                    ) / ${resetQMiniHtml}
                 </div>
                 <div>
                     <input type="hidden" class="input-wide" id="qposi" name="qposi" value="${qnamePosition}" placeholder="0">
@@ -739,25 +741,30 @@ const server = http.createServer((req, res) => {
     let qType = replaceKnownToUnknownRrType(queryType);
     let qClass = 'IN';
     let qName = domainName;
+    if (qName !== '.' && qName.endsWith('.')) {
+        qName = qName.slice(0, -1);	// 最後の '.' を削除
+    }
     if (queryType === 'VERSION') {
         qType = 'TXT';
         qClass = 'CH';
     }
+
     if (qnameMinimisation) {
-        let parsedQName = domainName.split('.');
         if (!Number.isInteger(Number(qnamePosition))) {
             html += `<div class="result error"><p>エラー: QNAME minimisationを無効にして試してください。</p></div>`;
             res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
             res.end(html + '</div></body></html>');
             return;
         }
+
+        let parsedQName = qName.split('.');
         if (qnamePosition < 0 || parsedQName.length <= qnamePosition) {
             qnamePosition = parsedQName.length - 1;
-            if (parsedQName[parsedQName.length - 1] === '') {
-                // split() は '.' の両側を '' 文字として配列に格納するため
-                // domainName が '.' の場合は parsedQName.length は 2 であり、qnamePosition は 1 になる
-                // ここでは最後の文字が '' の場合は qnamePosition を 1 減らして、再検索をしないようにする
-                qnamePosition--;
+            if (parsedQName[0] === '') {
+                // domainName (qName) が '.' の場合、 split() は '.' の両側を '' 文字として配列に格納するため
+                // parsedQName.length は 2 になり、qnamePosition は 1 になる
+                // ここでは一文字目が '' の場合は qnamePosition を 0 にして、再検索をしないようにする
+                qnamePosition = 0;
             }
         }
         if (qnamePosition > 0) {
@@ -771,7 +778,7 @@ const server = http.createServer((req, res) => {
                 }
                 qName += `${parsedQName[i]}.`;
             }
-            if (qName !== '.') {
+            if (qName !== '.' && qName.endsWith('.')) {
                 qName = qName.slice(0, -1);	// 最後の '.' を削除
             }
             qType = qnameType;	// RFC 9156 -> A, RFC 7816 -> NS

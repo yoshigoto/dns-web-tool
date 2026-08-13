@@ -753,6 +753,12 @@ const server = http.createServer((req, res) => {
         }
         if (qnamePosition < 0 || parsedQName.length <= qnamePosition) {
             qnamePosition = parsedQName.length - 1;
+            if (parsedQName[parsedQName.length - 1] === '') {
+                // split() は '.' の両側を '' 文字として配列に格納するため
+                // domainName が '.' の場合は parsedQName.length は 2 であり、qnamePosition は 1 になる
+                // ここでは最後の文字が '' の場合は qnamePosition を 1 減らして、再検索をしないようにする
+                qnamePosition--;
+            }
         }
         if (qnamePosition > 0) {
             // 例えば parsedQName -> [ 'www', 'example', 'com' ] とすると
@@ -765,9 +771,8 @@ const server = http.createServer((req, res) => {
                 }
                 qName += `${parsedQName[i]}.`;
             }
-            // 最後の '.' を除去する
-            if (qName !== '') {
-                qName = qName.slice(0, -1);
+            if (qName !== '.') {
+                qName = qName.slice(0, -1);	// 最後の '.' を削除
             }
             qType = qnameType;	// RFC 9156 -> A, RFC 7816 -> NS
         }

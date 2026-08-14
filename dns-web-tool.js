@@ -693,7 +693,7 @@ const server = http.createServer((req, res) => {
         html +=   `<ol>`
         html +=     `<li><b>「対象ドメイン名」を入力</b>して<b>「送信」</b>してください。</li>`
         html +=       `<ul>`
-        html +=         `<li><a href="https://jprs.jp/glossary/index.php?ID=0152" target="_blank">委任</a>を辿りたい (非再帰検索/反復検索を体験したい) ときは、AUTHORITYや ADDITIONALの情報に含まれるドメイン名 (NS) や IPアドレス (A, AAAA) をクリックしてください。</li>`
+        html +=         `<li>AUTHORITYや ADDITIONALの情報に含まれるドメイン名 (NS) や IPアドレス (A, AAAA) をクリックすることで、<a href="https://jprs.jp/glossary/index.php?ID=0152" target="_blank">委任</a>を辿る (非再帰検索/反復検索を体験する) ことができます。</li>`
         html +=       `</ul>`
         html +=     `<li>「クエリー先DNSサーバー」は別の<a href="https://jprs.jp/glossary/index.php?ID=0145">権威サーバー</a>のドメイン名か IPアドレスを入力することもできます。</li>`
         html +=     `<li>「リセット」を押すことで、各種パラメーターを保持しつつ、以下のパラメーターをデフォルト値に戻します。</li>`

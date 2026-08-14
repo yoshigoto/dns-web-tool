@@ -259,7 +259,7 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domai
                     const soaRr = response.authorities.find(at => at.type === 'SOA');
                     if (soaRr) {
                         if (soaRr.name !== questionName) {
-                            html += `<p style="color: red; margin: 0;">※問い合わせた先の権威サーバーが RFC 8020 に対応していないようです。</p>`;
+                            html += `<p style="color: red; margin: 0;">※応答したサーバーが RFC 8020 に対応していないようです。</p>`;
                             html += `<p style="color: orange; margin: 0;">※Empty Non-Terminal かもしれません。${displayData} をクリックしてみてください。</p>`;
                         } else {
                             html += `<p style="color: orange; margin: 0;">※QNAME minimisation が有効になっていますので ${displayData} をクリックしてみてください。</p>`;

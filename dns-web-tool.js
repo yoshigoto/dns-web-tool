@@ -927,7 +927,7 @@ const server = http.createServer((req, res) => {
                 html += `<div class="result error"><p>タイムアウト: サーバー <strong>${dnsServer}</strong> から応答がありませんでした。</p>`;
                 if (qnameMinimisation) {
                     const resetQMiniHtml = addLinkToDisplayData(parsedUrl.origin, parsedUrl.pathname, 'a.root-servers.net', domainName, queryType, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, '255', qnameType, 'こちら');
-                    html += `<p>※問い合わせたドメイン名は <strong>${qName}</strong> でした。${resetQMiniHtml} をクリックして QNAME minimisation の状態をリセットしてみてください。</p>`;
+                    html += `<p>※問い合わせたのは <strong>${qName}</strong> でした。${resetQMiniHtml} で QNAME minimisation の状態をリセットしてみてください。</p>`;
                 }
                 html += `</div>`;
                 res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });

@@ -887,7 +887,7 @@ const server = http.createServer((req, res) => {
                 } catch (err) {
                     html += `<div class="result error"><p>エラー: パケットの解析に失敗しました: ${escapeHtml(err.message)}</p></div>`;
                 } finally {
-                    tcpClient.end();	// AWS (Route 53) は、TCPリソース解放をすぐに行う目的で DNSデータの送信後に RSTを送ってくるので、end() では read ECONNRESET が発生してしまう
+                    tcpClient.end();	// AWS (Route 53) は、TCPリソース解放をすぐに行う目的で DNSデータの送信後に RSTを送ってくるので、end() では read ECONNRESET が発生してしまうが、あえてこのようにしている
                 }
             }
         });
@@ -920,7 +920,8 @@ const server = http.createServer((req, res) => {
             if (!isResponded) {
                 html += `<div class="result error"><p>タイムアウト: サーバー <strong>${dnsServer}</strong> から応答がありませんでした。</p>`;
                 if (qnameMinimisation) {
-                    html += `<p>問い合わせたドメイン名は <strong>${qName}</strong> でした。QNAME minimisationを無効にして試してください。</p>`;
+                    const resetQMiniHtml = addLinkToDisplayData(parsedUrl.origin, parsedUrl.pathname, 'a.root-servers.net', domainName, queryType, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, '255', qnameType, 'こちら');
+                    html += `<p>※問い合わせたドメイン名は <strong>${qName}</strong> でした。${resetQMiniHtml} をクリックしてみてください。</p>`;
                 }
                 html += `</div>`;
                 res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });

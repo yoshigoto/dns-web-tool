@@ -615,58 +615,58 @@ const server = http.createServer((req, res) => {
                     </select>
                 </div>
                 <div>
-                    <label class="label-wide">再帰の要求 (RDフラグ):</label>
+                    <label for="rd" class="label-wide">再帰の要求 (RDフラグ):</label>
                     <input type="checkbox" id="rd" name="rd" value="1" ${recursionDesired ? 'checked' : ''}>
                     <label for="rd" style="font-weight:normal; width:auto;">(クエリー先がフルサービスリゾルバーのときは有効にする)</label>
                 </div>
                 <div style="margin-bottom: 5px;">
-                    <label class="label-wide">QNAME minimisation:</label>
+                    <label for="qmini" class="label-wide">QNAME minimisation:</label>
                     <input type="checkbox" id="qmini" name="qmini" value="1" ${qnameMinimisation ? 'checked' : ''}>
-                    <label style="font-weight:normal; width:auto;">ラベル位置:</label>
+                    <label for="qmini" style="font-weight:normal; width:auto;">(ラベル位置:</label>
                     <input type="text" class="input-narrow" id="qposi" name="qposi" value="${qnamePosition}" readonly>
-                    <label style="font-weight:normal; width:auto;">${resetQMiniHtml}</label>
+                    <label style="font-weight:normal; width:auto;">${resetQMiniHtml})</label>
                 </div>
                 <div style="background-color: #e0e0ff; margin: 5px 5px 10px 10px; padding: 5px 10px 5px 15px; border: 1px solid #ccc; border-radius: 8px;">
                     <div style="margin: 5px 0px;">
-                        <label class="label-wide">クエリータイプ: </label>
+                        <label for="qtype" class="label-wide">クエリータイプ: </label>
                         <label style="font-weight:normal; width:auto;"><input type="radio" id="qtype" name="qtype" value="A" ${qnameType === 'A' ? 'checked' : ''}>A/AAAA (RFC 9156)</label>
                         <label style="font-weight:normal; width:auto;"><input type="radio" id="qtype" name="qtype" value="NS" ${qnameType === 'A' ? '' : 'checked'}>NS (RFC 7816)</label>
                     </div>
                 </div>
                 <div style="margin-bottom: 5px;">
-                    <label class="label-wide">EDNS0の付与:</label>
+                    <label for="edns0" class="label-wide">EDNS0の付与:</label>
                     <input type="checkbox" id="edns0" name="edns0" value="1" ${edns0Enable ? 'checked' : ''}>
                     <label for="edns0" style="font-weight:normal; width:auto;">(RFC 6891)</label>
                 </div>
                 <div style="background-color: #e0e0ff; margin: 5px 5px 10px 10px; padding: 5px 10px 5px 15px; border: 1px solid #ccc; border-radius: 8px;">
                     <div style="margin: 5px 0px;">
-                        <label class="label-wide">DNSSEC情報の要求:</label>
+                        <label for="dnssec" class="label-wide">DNSSEC情報の要求:</label>
                         <input type="checkbox" id="dnssec" name="dnssec" value="1" ${dnssecOk ? 'checked' : ''}>
                         <label for="dnssec" style="font-weight:normal; width:auto;">DNSSEC OK (DO) フラグを立てる</label>
                     </div>
                     <div style="margin: 5px 0px;">
-                        <label class="label-wide">UDPメッセージサイズ:</label>
+                        <label for="udpsize" class="label-wide">UDPメッセージサイズ:</label>
                         <input type="text" class="input-narrow" id="udpsize" name="udpsize" value="${udpSize}" placeholder="1232" required>
                         <label for="udpsize" style="font-weight:normal; width:auto;">byte</label>
                     </div>
                     <div style="margin: 5px 0px;">
-                        <label class="label-wide">NSIDの要求:</label>
+                        <label for="nsid" class="label-wide">NSIDの要求:</label>
                         <input type="checkbox" id="nsid" name="nsid" value="1" ${nsidEnable ? 'checked' : ''}>
                         <label for="nsid" style="font-weight:normal; width:auto;">(RFC 5001)</label>
                     </div>
                     <div style="margin: 5px 0px;">
-                        <label class="label-wide">MQTYPE-Query:</label>
+                        <label for="mqtype" class="label-wide">MQTYPE-Query:</label>
                         <input type="text" class="input-wide" id="mqtype" name="mqtype" value="${mQType}" placeholder="AAAA,TXT">
                         <label for="mqtype" style="font-weight:normal; width:auto;">(RFC 10029) <b><span style="color: red;">※未テスト</span></b></label>
                     </div>
                 </div>
                 <div>
-                    <label class="label-wide">TCP送受信:</label>
+                    <label for="tcp" class="label-wide">TCP送受信:</label>
                     <input type="checkbox" id="tcp" name="tcp" value="1" ${sendTcp ? 'checked' : ''}>
                     <label for="tcp" style="font-weight:normal; width:auto;">(レスポンスに TCフラグが立っていたときは有効にする)</label>
                 </div>
                 <div>
-                    <label class="label-wide">IPv6送受信:</label>
+                    <label for="ipv6" class="label-wide">IPv6送受信:</label>
                     <input type="checkbox" id="ipv6" name="ipv6" value="1" ${sendIpv6 ? 'checked' : ''}>
                     <label for="ipv6" style="font-weight:normal; width:auto;">(UDP送受信の際に IPv6で接続したいときは有効にする)</label>
                 </div>

@@ -565,8 +565,8 @@ const server = http.createServer((req, res) => {
                 body { font-family: sans-serif; margin: 0; padding: 20px; background: #f4f6f9; color: #333; }
                 .container { max-width: 800px; margin: 0 auto; padding: 25px; background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
                 div { margin-bottom: 10px; }
-                .a-button { padding: 4px 10px; background: #007BFF; color: white; border: none; border-radius: 6px; font-size: 15px; font-weight: bold; text-decoration: none; }
-                .a-button:hover { background: #0056b3; }
+                .a-button { padding: 4px 10px; background: #FF7B00; color: white; border: none; border-radius: 6px; font-size: 15px; font-weight: bold; text-decoration: none; }
+                .a-button:hover { background: #b35600; }
                 label { display: inline-block; font-weight: bold; }
                 .label-wide { width: 220px; }
                 .label-narrow { width: 194px; }
@@ -628,9 +628,8 @@ const server = http.createServer((req, res) => {
                 <div style="margin-bottom: 5px;">
                     <label for="qmini" class="label-wide">QNAME minimisation:</label>
                     <input type="checkbox" id="qmini" name="qmini" value="1" ${qnameMinimisation ? 'checked' : ''}>
-                    <label for="qmini" style="font-weight:normal; width:auto;">(ラベル位置:</label>
-                    <input type="text" class="input-narrow" id="qposi" name="qposi" value="${qnamePosition}" readonly>
-                    <label style="font-weight:normal; width:auto;">${resetQMiniHtml} )</label>
+                    <label for="qmini" style="font-weight:normal; width:auto;">(ラベル位置: ${qnamePosition})</label>
+                    <input type="text" class="input-narrow" id="qposi" name="qposi" value="${qnamePosition}" hidden>
                 </div>
                 <div style="background-color: #e0e0ff; margin: 5px 5px 10px 10px; padding: 5px 10px 5px 15px; border: 1px solid #ccc; border-radius: 8px;">
                     <div style="margin: 5px 0px;">
@@ -677,7 +676,7 @@ const server = http.createServer((req, res) => {
                     <label for="ipv6" style="font-weight:normal; width:auto;">(UDP送受信の際に IPv6で接続したいときは有効にする)</label>
                 </div>
                 <div>
-                    <input type="submit" value="DNSパケットを送信">
+                    <input type="submit" value="DNSパケットを送信"> ${resetQMiniHtml}
                 </div>
             </form>
     `;

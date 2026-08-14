@@ -685,11 +685,14 @@ const server = http.createServer((req, res) => {
         html += `<div class="explanation">`
         html += `<p>digコマンドや drillコマンドのように DNSクエリーを送信し、受信した内容を表示します。</p>`
         html += `<p>■デフォルトでは<b><a href="https://jprs.jp/glossary/index.php?ID=0158" target="_blank">フルサービスリゾルバー</a></b>の動作 (処理) を<b>体験</b>できるようになっています。`
-        html +=     `<ol><li><b>「対象ドメイン名」を入力</b>して<b>「送信」</b>してください。</li>`
-        html +=         `<ul><li><a href="https://jprs.jp/glossary/index.php?ID=0152" target="_blank">委任</a>を辿りたい (非再帰検索/反復検索を体験したい) ときは、AUTHORITYや ADDITIONALの情報に含まれるドメイン名 (NS) や IPアドレス (A, AAAA) をクリックしてください。</li>`
-        html +=         `</ul>`
+        html +=   `<ol>`
+        html +=     `<li><b>「対象ドメイン名」を入力</b>して<b>「送信」</b>してください。</li>`
+        html +=       `<ul>`
+        html +=         `<li><a href="https://jprs.jp/glossary/index.php?ID=0152" target="_blank">委任</a>を辿りたい (非再帰検索/反復検索を体験したい) ときは、AUTHORITYや ADDITIONALの情報に含まれるドメイン名 (NS) や IPアドレス (A, AAAA) をクリックしてください。</li>`
+        html +=         `<li>QNAME minimisationにおける「リセット」は、「クエリー先DNSサーバー」とドメイン名の位置情報 (どのラベルまでを問い合わせているか) をリセットします。</li>`
+        html +=       `</ul>`
         html +=     `<li>「クエリー先DNSサーバー」はデフォルトでは「a.root-servers.net」が設定されていますが、別の<a href="https://jprs.jp/glossary/index.php?ID=0145">権威サーバー</a>を指定することもできます。</li>`
-        html +=     `</ol>`
+        html +=   `</ol>`
         html += `</p>`
         html += `<p>■<b><a href="https://jprs.jp/glossary/index.php?ID=0197" target="_blank">スタブリゾルバー</a></b>の動作 (処理) も<b>体験</b>することができます。`
         html +=     `<ol><li>「クエリー先DNSサーバー」に<a href="https://jprs.jp/glossary/index.php?ID=0158" target="_blank">フルサービスリゾルバー</a>のIPアドレスを入力し、</li>`

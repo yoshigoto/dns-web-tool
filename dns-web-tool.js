@@ -249,7 +249,13 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domai
 
     // Answerセクションについて応答コードに応じた条件分岐
     html += `<p><strong>ANSWER SECTION (${response.answers.length} 個) :</strong></p>`;
-    if (rcode === 'NXDOMAIN') {
+    if (rcode === 'SERVFAIL') {
+        html += `<p style="color: red; margin: 0;">SERVFAIL: 応答したサーバー <code>${dnsServer}</code> で一時的なエラーが発生したか、設定に問題があります。</p>`;
+    } else if (rcode === 'REFUSED') {
+        html += `<p style="color: red; margin: 0;">REFUSED: 応答したサーバー <code>${dnsServer}</code> のポリシーによりクエリーが拒否されました。</p>`;
+    } else if (rcode === 'FORMERR') {
+        html += `<p style="color: red; margin: 0;">FORMERR: 応答したサーバー <code>${dnsServer}</code> が送信したパケットの形式に問題があると判断しました。</p>`;
+    } else if (rcode === 'NXDOMAIN') {
         html += `<p style="color: red; margin: 0;">NXDOMAIN: 問い合わせたドメイン名 <code>${questionName}</code> は存在しませんでした。</p>`;
         if (qnameMinimisation) {
             if (qnamePosition > 0) {
@@ -259,7 +265,7 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domai
                     const soaRr = response.authorities.find(at => at.type === 'SOA');
                     if (soaRr) {
                         if (soaRr.name !== questionName) {
-                            html += `<p style="color: red; margin: 0;">※応答したサーバーが RFC 8020 に対応していないようです。</p>`;
+                            html += `<p style="color: red; margin: 0;">※応答したサーバー <code>${dnsServer}</code> が RFC 8020 に対応していないようです。</p>`;
                             html += `<p style="color: orange; margin: 0;">※Empty Non-Terminal かもしれません。${displayData} をクリックしてみてください。</p>`;
                         } else {
                             html += `<p style="color: orange; margin: 0;">※QNAME minimisation が有効になっていますので ${displayData} をクリックしてみてください。</p>`;
@@ -268,17 +274,11 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domai
                 }
             }
         }
-    } else if (rcode === 'SERVFAIL') {
-        html += '<p style="color: red; margin: 0;">SERVFAIL: 問い合わせた先の権威サーバーで一時的なエラーが発生したか、設定に問題があります。</p>';
-    } else if (rcode === 'REFUSED') {
-        html += '<p style="color: red; margin: 0;">REFUSED: ゾーン転送の拒否や、キャッシュサーバーのポリシーによりクエリーが拒否されました。</p>';
-    } else if (rcode === 'FORMERR') {
-        html += '<p style="color: red; margin: 0;">FORMERR: 送信したパケットの形式に問題があると判断されました。</p>';
     } else if (rcode === 'NOERROR') {
         // 正常応答の場合
         if (!response.answers || response.answers.length === 0) {
             // rcodeはNOERRORだが、該当レコードが空 (例: AAAAを引いたがAレコードしか持っていない場合など)
-            html += '<p style="color: green; margin: 0;">NOERROR: 指定されたタイプのレコード (回答) は見つかりませんでした。</p>';
+            html += `<p style="color: green; margin: 0;">NOERROR: 指定されたタイプ <code>${questionType}</code> に対するレコード (回答) は見つかりませんでした。</p>`;
             if (qnameMinimisation) {
                 if (qnamePosition > 0) {
                     qnamePosition--;

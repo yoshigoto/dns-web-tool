@@ -135,7 +135,7 @@ const decodeResourceRecord = (type, msg) => {
             const paramValBuffer = msg.subarray(offset, offset + paramLen);
             offset += paramLen;
             switch (paramKey) {
-                case 1: // alpn (文字列のリスト。各文字列の前に1バイトの長さ)
+                case 1: // Additional supported protocols (文字列のリストであり各文字列の前に 1バイトの長さ)
                     const alpnList = [];
                     let idx = 0;
                     while (idx < paramValBuffer.length) {
@@ -146,10 +146,10 @@ const decodeResourceRecord = (type, msg) => {
                     }
                     paramString += `alpn=${alpnList}, `;
                     break;
-                case 3: // port (2バイトの整数)
+                case 3: // Port for alternative endpoint (2バイトの整数)
                     paramString += `port=${paramValBuffer.readUInt16BE(0)}, `;
                     break;
-                case 4:
+                case 4: // IPv4 address hints (4バイトの整数のリスト)
                     let ipv4List = [];
                     for (let i = 0; i < paramValBuffer.length; i += 4) {
                         const num = paramValBuffer.readUInt32BE(i); 
@@ -163,10 +163,10 @@ const decodeResourceRecord = (type, msg) => {
                     }
                     paramString += `ipv4hint=${ipv4List}, `;
                     break;
-                case 5:
+                case 5: // TLS Encrypted ClientHello Config
                     paramString += `ech=${paramValBuffer.toString('hex')}, `;
                     break;
-                case 6:
+                case 6: // IPv6 address hints (16バイトの整数のリスト)
                     let ipv6List = [];
                     for (let i = 0; i < paramValBuffer.length; i += 16) {
                         const hex = paramValBuffer.toString('hex', i);
@@ -179,10 +179,10 @@ const decodeResourceRecord = (type, msg) => {
                     }
                     paramString += `ipv6hint=${ipv6List}, `;
                     break;
-                case 7:
+                case 7: // DNS over HTTPS path template (文字列)
                     paramString += `dohpath=${paramValBuffer.toString('utf8')}, `;
                     break;
-                default: // その他（echなど）はHex等で保持
+                default: // その他は Hexで表示
                     paramString += `other(${paramKey})=${paramValBuffer.toString('hex')}, `;
             }
         }

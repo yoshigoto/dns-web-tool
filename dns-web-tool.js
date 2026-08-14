@@ -194,15 +194,15 @@ const decodeResourceRecord = (type, msg) => {
     return displayData;
 }
 
-const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domainName, queryType, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType) => {
+const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domainName, queryType, queryId, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType) => {
     let html = '';
     let questionName = '';
     let questionType = '';
 
-    html += `<div class="result"><h3>--- DNSレスポンス解析結果 ---</h3>`;
-    html += `<p><strong>基本情報:</strong></p>`;
+    html += '<div class="result"><h3>--- DNSレスポンス解析結果 ---</h3>';
+    html += '<p><strong>基本情報:</strong></p>';
     html += '<ul>';
-    html += `<li>応答サイズ: <code>${bytesRead}</code>byte</li>`;
+    html += `<li>応答サイズ: <code>${bytesRead}</code>byte, クエリーID: <code>${queryId} (${response.id === queryId ? '一致' : '不一致'})</code></li>`;
     html += `<li>応答したサーバー: <code>${dnsServer}</code></li>`;
 
     if (response.questions && response.questions.length > 0) {
@@ -214,7 +214,7 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domai
         });
     }
 
-    // 応答コード (rcode) の取得と判別
+    // 応答コード (rcode) の取得
     const rcode = response.rcode;
     html += `<li>応答ステータス (rcode): <code>${escapeHtml(rcode)}</code></li>`;
 
@@ -754,6 +754,7 @@ const server = http.createServer((req, res) => {
     let qType = replaceKnownToUnknownRrType(queryType);
     let qClass = 'IN';
     let qName = domainName;
+    const qId = Math.floor(Math.random() * 65535);
     if (qName !== '.' && qName.endsWith('.')) {
         qName = qName.slice(0, -1);	// 最後の '.' を削除
     }
@@ -801,7 +802,7 @@ const server = http.createServer((req, res) => {
     }
     let queryPacket = {
         type: 'query',
-        id: Math.floor(Math.random() * 65535),
+        id: qId,
         flags: recursionDesired ? dnsPacket.RECURSION_DESIRED : 0,
         questions: [{
             type: qType,
@@ -889,7 +890,7 @@ const server = http.createServer((req, res) => {
                 try {
                     const response = dnsPacket.streamDecode(receivedBuffer);
                     const bytesRead = dnsPacket.streamDecode.bytes;
-                    resultHtml += makeHtmlFromDns(response, bytesRead, parsedUrl.origin, parsedUrl.pathname, dnsServer, domainName, queryType, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType);
+                    resultHtml += makeHtmlFromDns(response, bytesRead, parsedUrl.origin, parsedUrl.pathname, dnsServer, domainName, queryType, qId, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType);
                 } catch (err) {
                     html += `<div class="result error"><p>エラー: パケットの解析に失敗しました: ${escapeHtml(err.message)}</p></div>`;
                 } finally {
@@ -943,7 +944,7 @@ const server = http.createServer((req, res) => {
             try {
                 const response = dnsPacket.decode(msg);
                 const bytesRead = dnsPacket.decode.bytes;
-                html += makeHtmlFromDns(response, bytesRead, parsedUrl.origin, parsedUrl.pathname, dnsServer, domainName, queryType, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType);
+                html += makeHtmlFromDns(response, bytesRead, parsedUrl.origin, parsedUrl.pathname, dnsServer, domainName, queryType, qId, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType);
             } catch (err) {
                 html += `<div class="result error"><p>エラー: パケットの解析に失敗しました: ${escapeHtml(err.message)}</p></div>`;
             } finally {

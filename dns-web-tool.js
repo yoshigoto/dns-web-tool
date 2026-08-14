@@ -569,6 +569,7 @@ const server = http.createServer((req, res) => {
                 .input-narrow { width: 60px; }
                 input[type="submit"] { padding: 8px 25px; cursor: pointer; background: #007BFF; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; }
                 input[type="submit"]:hover { background: #0056b3; }
+                input[readonly] { background-color: #f0f0f0; border: 1px solid #ccc; }
                 .result { margin-top: 30px; padding: 15px; border-radius: 6px; background: #f0f0f0; border-left: 6px solid #007BFF; white-space: pre; overflow-x: scroll; }
                 .error { border-color: red; background: #fff0f0; }
                 .explanation { font-size: 90%; }
@@ -618,16 +619,19 @@ const server = http.createServer((req, res) => {
                     <input type="checkbox" id="rd" name="rd" value="1" ${recursionDesired ? 'checked' : ''}>
                     <label for="rd" style="font-weight:normal; width:auto;">(クエリー先がフルサービスリゾルバーのときは有効にする)</label>
                 </div>
-                <div>
+                <div style="margin-bottom: 5px;">
                     <label class="label-wide">QNAME minimisation:</label>
                     <input type="checkbox" id="qmini" name="qmini" value="1" ${qnameMinimisation ? 'checked' : ''}>
-                    <label for="qmini" style="font-weight:normal; width:auto;">(クエリータイプ: </label>
-                    <label style="font-weight:normal; width:auto;"><input type="radio" id="qtype" name="qtype" value="A" ${qnameType === 'A' ? 'checked' : ''}>A/AAAA (RFC 9156)</label>
-                    <label style="font-weight:normal; width:auto;"><input type="radio" id="qtype" name="qtype" value="NS" ${qnameType === 'A' ? '' : 'checked'}>NS (RFC 7816)</label>
-                    ) / ${resetQMiniHtml}
+                    <label style="font-weight:normal; width:auto;">位置:</label>
+                    <input type="text" class="input-narrow" id="qposi" name="qposi" value="${qnamePosition}" readonly>
+                    <label style="font-weight:normal; width:auto;">${resetQMiniHtml}</label>
                 </div>
-                <div>
-                    <input type="hidden" class="input-wide" id="qposi" name="qposi" value="${qnamePosition}" placeholder="0">
+                <div style="background-color: #e0e0ff; margin: 5px 5px 10px 10px; padding: 5px 10px 5px 15px; border: 1px solid #ccc; border-radius: 8px;">
+                    <div style="margin: 5px 0px;">
+                        <label class="label-wide">クエリータイプ: </label>
+                        <label style="font-weight:normal; width:auto;"><input type="radio" id="qtype" name="qtype" value="A" ${qnameType === 'A' ? 'checked' : ''}>A/AAAA (RFC 9156)</label>
+                        <label style="font-weight:normal; width:auto;"><input type="radio" id="qtype" name="qtype" value="NS" ${qnameType === 'A' ? '' : 'checked'}>NS (RFC 7816)</label>
+                    </div>
                 </div>
                 <div style="margin-bottom: 5px;">
                     <label class="label-wide">EDNS0の付与:</label>

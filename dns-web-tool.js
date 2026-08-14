@@ -48,10 +48,14 @@ const escapeHtml = (str) => {
     });
 };
 
-const addLinkToDisplayData = (origin, pathname, dnsServer, domainName, queryType, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType, displayData) => {
-    let html = `<a href=${origin}${pathname}?server=${escapeHtml(dnsServer)}&name=${escapeHtml(domainName)}&type=${queryType}&rd=${recursionDesired ? '1' : '0'}`;
-        html += `&tcp=${sendTcp ? '1' : '0'}&ipv6=${sendIpv6 ? '1' : '0'}&edns0=${edns0Enable ? '1' : '0'}&dnssec=${dnssecOk ? '1' : '0'}&udpsize=${escapeHtml(udpSize)}&nsid=${nsidEnable ? '1' : '0'}&mqtype=${escapeHtml(mQType)}`;
-        html += `&qmini=${qnameMinimisation ? '1' : '0'}&qposi=${qnamePosition}&qtype=${qnameType}>${displayData}</a>`;
+const addLinkToDisplayData = (origin, pathname, dnsServer, domainName, queryType, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType, displayData, button=false) => {
+    let html = '<a ';
+    if (button) {
+        html += 'class="a-button" ';
+    }
+    html += `href=${origin}${pathname}?server=${escapeHtml(dnsServer)}&name=${escapeHtml(domainName)}&type=${queryType}&rd=${recursionDesired ? '1' : '0'}`;
+    html += `&tcp=${sendTcp ? '1' : '0'}&ipv6=${sendIpv6 ? '1' : '0'}&edns0=${edns0Enable ? '1' : '0'}&dnssec=${dnssecOk ? '1' : '0'}&udpsize=${escapeHtml(udpSize)}&nsid=${nsidEnable ? '1' : '0'}&mqtype=${escapeHtml(mQType)}`;
+    html += `&qmini=${qnameMinimisation ? '1' : '0'}&qposi=${qnamePosition}&qtype=${qnameType}>${displayData}</a>`;
     return html;
 };
 
@@ -548,7 +552,7 @@ const server = http.createServer((req, res) => {
     const udpSize = escapeHtml(rawUdpSize.trim());
     const mQType = escapeHtml(rawMQtype.trim());
 
-    const resetQMiniHtml = addLinkToDisplayData(parsedUrl.origin, parsedUrl.pathname, 'a.root-servers.net', domainName, queryType, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, '255', qnameType, 'リセット');
+    const resetQMiniHtml = addLinkToDisplayData(parsedUrl.origin, parsedUrl.pathname, 'a.root-servers.net', domainName, queryType, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, '255', qnameType, 'リセット', true);
 
     // HTML (フォーム部分) の構築
     let html = `
@@ -561,6 +565,8 @@ const server = http.createServer((req, res) => {
                 body { font-family: sans-serif; margin: 0; padding: 20px; background: #f4f6f9; color: #333; }
                 .container { max-width: 800px; margin: 0 auto; padding: 25px; background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
                 div { margin-bottom: 10px; }
+                .a-button { padding: 5px 10px; background: #007BFF; color: white; border: none; border-radius: 6px; font-size: 15px; font-weight: bold; text-decoration: none; }
+                .a-button:hover { background: #0056b3; }
                 label { display: inline-block; font-weight: bold; }
                 .label-wide { width: 220px; }
                 .label-narrow { width: 194px; }
@@ -920,7 +926,7 @@ const server = http.createServer((req, res) => {
             if (!isResponded) {
                 html += `<div class="result error"><p>タイムアウト: サーバー <strong>${dnsServer}</strong> から応答がありませんでした。</p>`;
                 if (qnameMinimisation) {
-                    const resetQMiniHtml = addLinkToDisplayData(parsedUrl.origin, parsedUrl.pathname, 'a.root-servers.net', domainName, queryType, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, '255', qnameType, 'こちら');
+                    const resetQMiniHtml = addLinkToDisplayData(parsedUrl.origin, parsedUrl.pathname, 'a.root-servers.net', domainName, queryType, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, '255', qnameType, 'リセット');
                     html += `<p>※問い合わせたドメイン名は <strong>${qName}</strong> でした。${resetQMiniHtml} をクリックしてみてください。</p>`;
                 }
                 html += `</div>`;

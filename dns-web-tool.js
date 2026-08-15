@@ -252,7 +252,7 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domai
     html += '</ul>';
 
     // Answerセクションについて応答コードに応じた条件分岐
-    html += `<p><strong>ANSWER SECTION (${response.answers.length} 個) :</strong></p>`;
+    html += `<p><strong style="color: ${response.answers.length > 0 ? '#dd0000' : '#0000dd'};">ANSWER SECTION (${response.answers.length} 個) :</strong></p>`;
     if (rcode === 'SERVFAIL') {
         html += `<p style="color: red; margin: 0;">SERVFAIL: 応答したサーバー <code>${dnsServer}</code> で一時的なエラーが発生したか、設定に問題があります。</p>`;
         if (recursionDesired && dnssecOk) {

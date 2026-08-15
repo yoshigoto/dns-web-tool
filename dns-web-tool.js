@@ -48,12 +48,12 @@ const escapeHtml = (str) => {
     });
 };
 
-const addLinkToDisplayData = (origin, pathname, dnsServer, domainName, queryType, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType, displayData, button=false, extraQuery='') => {
+const addLinkToDisplayData = (origin, pathname, dnsServer, domainName, queryType, recursionDesired, checkingDisabled, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType, displayData, button=false, extraQuery='') => {
     let html = '<a ';
     if (button) {
         html += 'class="a-button" ';
     }
-    html += `href=${origin}${pathname}?server=${escapeHtml(dnsServer)}&name=${escapeHtml(domainName)}&type=${queryType}&rd=${recursionDesired ? '1' : '0'}`;
+    html += `href=${origin}${pathname}?server=${escapeHtml(dnsServer)}&name=${escapeHtml(domainName)}&type=${queryType}&rd=${recursionDesired ? '1' : '0'}&cd=${checkingDisabled ? '1' : '0'}`;
     html += `&tcp=${sendTcp ? '1' : '0'}&ipv6=${sendIpv6 ? '1' : '0'}&edns0=${edns0Enable ? '1' : '0'}&dnssec=${dnssecOk ? '1' : '0'}&udpsize=${escapeHtml(udpSize)}&nsid=${nsidEnable ? '1' : '0'}&mqtype=${escapeHtml(mQType)}`;
     html += `&qmini=${qnameMinimisation ? '1' : '0'}&qposi=${qnamePosition}&qtype=${qnameType}${extraQuery}>${displayData}</a>`;
     return html;
@@ -194,7 +194,7 @@ const decodeResourceRecord = (type, msg) => {
     return displayData;
 }
 
-const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domainName, queryType, queryId, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType) => {
+const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domainName, queryType, queryId, recursionDesired, checkingDisabled, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType) => {
     let html = '';
     let questionName = '';
     let questionType = '';
@@ -260,7 +260,7 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domai
         if (qnameMinimisation) {
             if (qnamePosition > 0) {
                 qnamePosition--;
-                displayData = addLinkToDisplayData(origin, pathname, dnsServer, domainName, queryType, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType, 'こちら');
+                displayData = addLinkToDisplayData(origin, pathname, dnsServer, domainName, queryType, recursionDesired, checkingDisabled, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType, 'こちら');
                 if (response.authorities && response.authorities.length > 0) {
                     const soaRr = response.authorities.find(at => at.type === 'SOA');
                     if (soaRr) {
@@ -282,7 +282,7 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domai
             if (qnameMinimisation) {
                 if (qnamePosition > 0) {
                     qnamePosition--;
-                    displayData = addLinkToDisplayData(origin, pathname, dnsServer, domainName, queryType, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType, 'こちら');
+                    displayData = addLinkToDisplayData(origin, pathname, dnsServer, domainName, queryType, recursionDesired, checkingDisabled, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType, 'こちら');
                     if (response.authorities && response.authorities.length > 0) {
                         const soaRr = response.authorities.find(at => at.type === 'SOA');
                         if (soaRr) {
@@ -318,25 +318,25 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domai
                     }
                 } else if (answer.type === 'CNAME') {
                     // CNAMEレコードはデータを検索対象ドメイン名として扱い、後続の検索ができるようにする
-                    displayData = addLinkToDisplayData(origin, pathname, 'a.root-servers.net', answer.data, queryType, false, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, 255, qnameType, answer.data);
+                    displayData = addLinkToDisplayData(origin, pathname, 'a.root-servers.net', answer.data, queryType, false, checkingDisabled, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, 255, qnameType, answer.data);
                 } else if (answer.type === 'NS') {
                     if (qnameMinimisation) {
                         if (answer.name === domainName) {
-                            displayData = addLinkToDisplayData(origin, pathname, 'a.root-servers.net', answer.data, 'A', false, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, 255, qnameType, answer.data);
+                            displayData = addLinkToDisplayData(origin, pathname, 'a.root-servers.net', answer.data, 'A', false, checkingDisabled, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, 255, qnameType, answer.data);
                         } else {
-                            displayData = addLinkToDisplayData(origin, pathname, answer.data, domainName, queryType, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType, answer.data);
+                            displayData = addLinkToDisplayData(origin, pathname, answer.data, domainName, queryType, recursionDesired, checkingDisabled, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType, answer.data);
                         }
                     } else {
                         // NSが、自身の IPアドレスの情報を持っていない場合がある (例： ns014-fc9tjt3ao0p42dr4.f.d-53.info)
-                        displayData = addLinkToDisplayData(origin, pathname, 'a.root-servers.net', answer.data, 'A', false, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, 255, qnameType, answer.data);
+                        displayData = addLinkToDisplayData(origin, pathname, 'a.root-servers.net', answer.data, 'A', false, checkingDisabled, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, 255, qnameType, answer.data);
                     }
                 } else if (answer.type === 'MX') {
                     displayData = `preference: ${answer.data.preference}, exchange: `;
-                    displayData += addLinkToDisplayData(origin, pathname, 'a.root-servers.net', answer.data.exchange, 'A', false, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, 255, qnameType, answer.data.exchange);
+                    displayData += addLinkToDisplayData(origin, pathname, 'a.root-servers.net', answer.data.exchange, 'A', false, checkingDisabled, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, 255, qnameType, answer.data.exchange);
                 } else if (answer.type === 'PTR') {
-                    displayData = addLinkToDisplayData(origin, pathname, 'a.root-servers.net', answer.data, 'A', false, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, 255, qnameType, answer.data);
+                    displayData = addLinkToDisplayData(origin, pathname, 'a.root-servers.net', answer.data, 'A', false, checkingDisabled, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, 255, qnameType, answer.data);
                 } else if (answer.type === 'A' || answer.type === 'AAAA') {
-                    displayData = addLinkToDisplayData(origin, pathname, 'a.root-servers.net', answer.data, 'PTR-x', false, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, 255, qnameType, answer.data);
+                    displayData = addLinkToDisplayData(origin, pathname, 'a.root-servers.net', answer.data, 'PTR-x', false, checkingDisabled, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, 255, qnameType, answer.data);
                 } else if (typeof answer.data === 'object') {
                     // オブジェクト構造を持つデータ用
                     displayData = escapeHtml(JSON.stringify(answer.data));
@@ -359,7 +359,7 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domai
             let displayData = decodeResourceRecord(authorities.type, authorities.data);
             if (displayData.length === 0) {
                 if (authorities.type === 'NS') {
-                    displayData = addLinkToDisplayData(origin, pathname, authorities.data, domainName, queryType, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType, authorities.data);
+                    displayData = addLinkToDisplayData(origin, pathname, authorities.data, domainName, queryType, recursionDesired, checkingDisabled, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType, authorities.data);
                 } else if (typeof authorities.data === 'object') {
                     // オブジェクト構造を持つデータ用
                     displayData = escapeHtml(JSON.stringify(authorities.data));
@@ -386,7 +386,7 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domai
             let displayData = decodeResourceRecord(additionals.type, additionals.data);
             if (displayData.length === 0) {
                 if (additionals.type === 'A' || additionals.type === 'AAAA') {
-                    displayData = addLinkToDisplayData(origin, pathname, additionals.data, domainName, queryType, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType, additionals.data);
+                    displayData = addLinkToDisplayData(origin, pathname, additionals.data, domainName, queryType, recursionDesired, checkingDisabled, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType, additionals.data);
                 } else if (additionals.type === 'OPT') {
                     if (additionals.name === '.') {
                         // EDNS0
@@ -420,7 +420,7 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domai
                                 if (buffer.length < 2) continue;
                                 
                                 const length  = buffer.readUInt16BE(0);	// Size (in octets) of OPTION-DATA
-                                for (let offset = 0; offset < lenght; offset += 2) {
+                                for (let offset = 0; offset < length; offset += 2) {
                                     const type = buffer.readUInt16BE(offset + 2);
                                     mQTypeString += `dnsTypes.toString(type),`;
                                 }
@@ -644,6 +644,7 @@ const server = http.createServer((req, res) => {
     const rawDomainName = params.get('name') || '';
     const rawQueryType = params.get('type') || 'A';
     const recursionDesired = params.get('rd') === '1';
+    const checkingDisabled = params.get('cd') === '1';
     const qnameMinimisation = params.get('qmini') === '1';
     const rawQnamePosition = params.get('qposi') || '255';
     const rawQnameType = params.get('qtype') || 'A';
@@ -672,7 +673,7 @@ const server = http.createServer((req, res) => {
         isInvalidUdpSize(rawUdpSize) ||
         isInvalidQueryType(rawQueryType);
 
-    const resetQMiniHtml = addLinkToDisplayData(parsedUrl.origin, parsedUrl.pathname, 'a.root-servers.net', domainName, queryType, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, '255', qnameType, 'リセット', true, '&reset=1');
+    const resetQMiniHtml = addLinkToDisplayData(parsedUrl.origin, parsedUrl.pathname, 'a.root-servers.net', domainName, queryType, recursionDesired, checkingDisabled, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, '255', qnameType, 'リセット', true, '&reset=1');
     const shouldHideSearchForm = parsedUrl.search !== '' && !shouldKeepSearchVisibleAfterReset && !shouldShowSearchPanelForError;
     const searchToggleState = shouldHideSearchForm ? 'display:none;' : '';
 
@@ -752,9 +753,16 @@ const server = http.createServer((req, res) => {
                         </select>
                     </div>
                     <div>
-                        <label for="rd" class="label-wide">再帰の要求 (RDフラグ):</label>
+                        <label for="rd" class="label-wide">再帰の要求 (RD):</label>
                         <input type="checkbox" id="rd" name="rd" value="1" ${recursionDesired ? 'checked' : ''}>
                         <label for="rd" style="font-weight:normal; width:auto;">(クエリー先がフルサービスリゾルバーのときは有効にする)</label>
+                    </div>
+                    <div style="background-color: #e0e0ff; margin: 5px 5px 10px 10px; padding: 5px 10px 5px 15px; border: 1px solid #ccc; border-radius: 8px;">
+                        <div style="margin: 5px 0px;">
+                            <label for="cd" class="label-wide">チェックの無効化 (CD):</label>
+                            <input type="checkbox" id="cd" name="cd" value="1" ${checkingDisabled ? 'checked' : ''}>
+                            <label for="cd" style="font-weight:normal; width:auto;">(DNSSECバリデーションを無効化する場合は有効にする)</label>
+                        </div>
                     </div>
                     <div style="margin-bottom: 5px;">
                         <label for="qmini" class="label-wide">QNAME minimisation:</label>
@@ -950,16 +958,20 @@ const server = http.createServer((req, res) => {
             }
         }
     }
+    console.log(`qName: ${qName}, qType: ${qType}, qClass: ${qClass}, qId: ${qId}, recursionDesired: ${recursionDesired}, checkingDisabled: ${checkingDisabled}`);
+    const dnsFlags = (recursionDesired ? dnsPacket.RECURSION_DESIRED : 0) |
+        (checkingDisabled ? dnsPacket.CHECKING_DISABLED : 0);
     let queryPacket = {
         type: 'query',
         id: qId,
-        flags: recursionDesired ? dnsPacket.RECURSION_DESIRED : 0,
+        flags: dnsFlags,
         questions: [{
             type: qType,
             class: qClass,
             name: qName
         }]
     };
+    console.log(queryPacket);
     if (edns0Enable) {
         const edns0Option = {
             type: 'OPT',
@@ -1040,7 +1052,7 @@ const server = http.createServer((req, res) => {
                 try {
                     const response = dnsPacket.streamDecode(receivedBuffer);
                     const bytesRead = dnsPacket.streamDecode.bytes;
-                    resultHtml += makeHtmlFromDns(response, bytesRead, parsedUrl.origin, parsedUrl.pathname, dnsServer, domainName, queryType, qId, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType);
+                    resultHtml += makeHtmlFromDns(response, bytesRead, parsedUrl.origin, parsedUrl.pathname, dnsServer, domainName, queryType, qId, recursionDesired, checkingDisabled, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType);
                 } catch (err) {
                     html += `<div class="result error"><p>エラー: パケットの解析に失敗しました: ${escapeHtml(err.message)}</p></div>`;
                 } finally {
@@ -1077,7 +1089,7 @@ const server = http.createServer((req, res) => {
             if (!isResponded) {
                 html += `<div class="result error"><p>タイムアウト: サーバー <strong>${dnsServer}</strong> から応答がありませんでした。</p>`;
                 if (qnameMinimisation) {
-                    const resetQMiniHtml = addLinkToDisplayData(parsedUrl.origin, parsedUrl.pathname, 'a.root-servers.net', domainName, queryType, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, '255', qnameType, 'こちら');
+                    const resetQMiniHtml = addLinkToDisplayData(parsedUrl.origin, parsedUrl.pathname, 'a.root-servers.net', domainName, queryType, recursionDesired, checkingDisabled, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, '255', qnameType, 'こちら');
                     html += `<p>※問い合わせたのは <strong>${qName}</strong> でした。${resetQMiniHtml} で QNAME minimisation の状態をリセットしてみてください。</p>`;
                 }
                 html += `</div>`;
@@ -1094,7 +1106,7 @@ const server = http.createServer((req, res) => {
             try {
                 const response = dnsPacket.decode(msg);
                 const bytesRead = dnsPacket.decode.bytes;
-                html += makeHtmlFromDns(response, bytesRead, parsedUrl.origin, parsedUrl.pathname, dnsServer, domainName, queryType, qId, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType);
+                html += makeHtmlFromDns(response, bytesRead, parsedUrl.origin, parsedUrl.pathname, dnsServer, domainName, queryType, qId, recursionDesired, checkingDisabled, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType);
             } catch (err) {
                 html += `<div class="result error"><p>エラー: パケットの解析に失敗しました: ${escapeHtml(err.message)}</p></div>`;
             } finally {

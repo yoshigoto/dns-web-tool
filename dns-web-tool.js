@@ -551,8 +551,11 @@ const server = http.createServer((req, res) => {
     const qnameType = escapeHtml(rawQnameType) === 'NS' ? 'NS' : 'A';
     const udpSize = escapeHtml(rawUdpSize.trim());
     const mQType = escapeHtml(rawMQtype.trim());
+    const shouldReturnToForm = params.get('back') === '1';
 
     const resetQMiniHtml = addLinkToDisplayData(parsedUrl.origin, parsedUrl.pathname, 'a.root-servers.net', domainName, queryType, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, '255', qnameType, 'リセット', true);
+    const shouldHideSearchForm = parsedUrl.search !== '';
+    const searchToggleState = shouldHideSearchForm ? 'display:none;' : '';
 
     // HTML (フォーム部分) の構築
     let html = `
@@ -565,16 +568,20 @@ const server = http.createServer((req, res) => {
                 body { font-family: sans-serif; margin: 0; padding: 20px; background: #f4f6f9; color: #333; }
                 .container { max-width: 800px; margin: 0 auto; padding: 25px; background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
                 div { margin-bottom: 10px; }
-                .a-button { padding: 4px 10px; background: #FF7B00; color: white; border: none; border-radius: 6px; font-size: 15px; font-weight: bold; text-decoration: none; }
-                .a-button:hover { background: #b35600; }
+                .a-button { display: inline-block; padding: 10px 18px; background: #FF7B00; color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: 700; text-decoration: none; letter-spacing: 0.04em; box-shadow: 0 2px 6px rgba(0,0,0,0.12); transition: all 0.15s ease; }
+                .a-button:hover { background: #E66A00; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.16); }
                 label { display: inline-block; font-weight: bold; }
                 .label-wide { width: 220px; }
                 .label-narrow { width: 194px; }
                 input[type="text"], select { padding: 5px; box-sizing: border-box; }
                 .input-wide { width: 250px; }
                 .input-narrow { width: 60px; }
-                input[type="submit"] { padding: 8px 25px; cursor: pointer; background: #007BFF; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; }
-                input[type="submit"]:hover { background: #0056b3; }
+                input[type="submit"] { padding: 10px 25px; cursor: pointer; background: #007BFF; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 700; letter-spacing: 0.04em; box-shadow: 0 2px 6px rgba(0,0,0,0.12); transition: all 0.15s ease; }
+                input[type="submit"]:hover { background: #0056b3; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.16); }
+                #search-toggle { padding: 10px 18px; border: none; border-radius: 8px; color: white; font-size: 15px; font-weight: 700; letter-spacing: 0.04em; cursor: pointer; background: #1F8B4C; box-shadow: 0 2px 6px rgba(0,0,0,0.12); transition: all 0.15s ease; }
+                #search-toggle:hover { background: #18733F; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.16); }
+                #search-toggle[data-state="hide"] { background: #5A6472; }
+                #search-toggle[data-state="hide"]:hover { background: #495362; }
                 input[readonly] { background-color: #f0f0f0; border: 1px solid #ccc; }
                 .result { margin-top: 30px; padding: 15px; border-radius: 6px; background: #f0f0f0; border-left: 6px solid #007BFF; white-space: pre; overflow-x: scroll; }
                 .error { border-color: red; background: #fff0f0; }
@@ -586,7 +593,7 @@ const server = http.createServer((req, res) => {
         <body>
         <div class="container">
             <h2>🔍 <a href=${parsedUrl.origin}${parsedUrl.pathname}>DNSクエリー送信ツール</a></h2>
-            <form id="search" action="search" method="GET">
+            <form id="search" action="search" method="GET" onsubmit="this.style.display='none'; document.getElementById('search-toggle').textContent='再表示'; document.getElementById('search-toggle').style.display='inline-block';" style="${searchToggleState}">
                 <div>
                     <label for="server" class="label-wide">クエリー先DNSサーバー:</label>
                     <input type="text" class="input-wide" id="server" name="server" value="${dnsServer}" placeholder="a.root-servers.net">
@@ -679,6 +686,9 @@ const server = http.createServer((req, res) => {
                     <input type="submit" value="DNSパケットを送信"> ${resetQMiniHtml}
                 </div>
             </form>
+            <div id="search-controls" style="margin-top: 10px;">
+                <button type="button" id="search-toggle" class="a-button" data-state="${shouldHideSearchForm ? 'show' : 'hide'}" onclick="const form = document.getElementById('search'); const toggle = document.getElementById('search-toggle'); if (form.style.display === 'none') { form.style.display='block'; toggle.textContent='非表示'; toggle.dataset.state='hide'; } else { form.style.display='none'; toggle.textContent='再表示'; toggle.dataset.state='show'; }">${shouldHideSearchForm ? '再表示' : '非表示'}</button>
+            </div>
     `;
 
     // 初期アクセス時はフォームだけ表示して終了

@@ -748,7 +748,7 @@ const server = http.createServer((req, res) => {
         <div class="container">
             <h2>🔍 <a href=${parsedUrl.origin}${parsedUrl.pathname}>DNSクエリー送信ツール</a></h2>
             <div id="search-panel" style="${searchToggleState}">
-                <form id="search" action="search" method="GET" onsubmit="const panel = this.closest('#search-panel'); if (panel) { panel.style.display='none'; } document.getElementById('search-toggle').textContent='再表示'; document.getElementById('search-toggle').dataset.state='show';">
+                <form id="search" action="search" method="GET" onsubmit="const panel = this.closest('#search-panel'); if (panel) { panel.style.display='none'; } document.getElementById('search-toggle').textContent='入力欄再表示'; document.getElementById('search-toggle').dataset.state='show';">
                     <div>
                         <label for="server" class="label-wide">クエリー先DNSサーバー:</label>
                         <input type="text" class="input-wide" id="server" name="server" value="${dnsServer}" placeholder="a.root-servers.net">

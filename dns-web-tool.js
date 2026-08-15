@@ -472,24 +472,91 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domai
     return html;
 };
 
+const reverseIPv4 = (ip) => {
+    if (typeof ip !== 'string') return '';
+
+    const parts = ip.trim().split('.');
+    if (parts.length !== 4) return '';
+    if (!parts.every(part => /^\d+$/.test(part))) return '';
+
+    const octets = parts.map(part => Number(part));
+    if (octets.some(octet => octet < 0 || octet > 255)) return '';
+
+    return octets.reverse().join('.');
+};
+
+const expandIPv6 = (ip) => {
+    if (typeof ip !== 'string') return [];
+
+    const normalized = ip.trim().toLowerCase();
+    if (!isValidIPv6(normalized)) return [];
+
+    const [leftPart = '', rightPart = ''] = normalized.split('::');
+    const left = leftPart ? leftPart.split(':').filter(Boolean) : [];
+    const right = rightPart ? rightPart.split(':').filter(Boolean) : [];
+    const missing = Math.max(0, 8 - (left.length + right.length));
+    const expanded = [...left, ...Array(missing).fill('0'), ...right];
+
+    return expanded.map(part => part.padStart(4, '0'));
+};
+
+const reverseIPv6 = (ip) => {
+    const expanded = expandIPv6(ip);
+    if (expanded.length === 0) return '';
+
+    return expanded
+        .join('')
+        .split('')
+        .reverse()
+        .join('.');
+};
+
 const compressIPv6 = (ip) => {
-    // まず、各オクテットの先頭にある'0'を取り除く ('0000'の場合は'0'に置き換える)
-    let output = ip.split(':').map(terms => terms.replace(/\b0+/g, '') || '0').join(":");
+    if (typeof ip !== 'string') return '';
 
-    // 次に、'0'のオクテットが連続している箇所をすべて検索する
-    let zeros = [...output.matchAll(/\b:?(?:0+:?){2,}/g)];
+    const normalized = ip.trim().toLowerCase();
+    if (!isValidIPv6(normalized)) return '';
 
-    // 該当箇所がある場合は、最も長いものを特定し、それを'::'に置き換える
-    if (zeros.length > 0) {
-        let max = '';
-        zeros.forEach(item => {
-            if (item[0].replaceAll(':', '').length > max.replaceAll(':', '').length) {
-                max = item[0];
+    const expanded = expandIPv6(normalized);
+    const normalizedGroups = expanded.map(part => part.replace(/^0+(?=[0-9a-f])/, '') || '0');
+
+    let bestStart = -1;
+    let bestLength = 0;
+    let currentStart = -1;
+    let currentLength = 0;
+
+    for (let i = 0; i < normalizedGroups.length; i++) {
+        if (normalizedGroups[i] === '0') {
+            if (currentStart === -1) {
+                currentStart = i;
             }
-        })
-        output = output.replace(max, '::');
+            currentLength += 1;
+        } else {
+            if (currentLength > bestLength) {
+                bestStart = currentStart;
+                bestLength = currentLength;
+            }
+            currentStart = -1;
+            currentLength = 0;
+        }
     }
-    return output;
+
+    if (currentLength > bestLength) {
+        bestStart = currentStart;
+        bestLength = currentLength;
+    }
+
+    if (bestLength <= 1) {
+        return normalizedGroups.join(':');
+    }
+
+    const leftCompressed = normalizedGroups.slice(0, bestStart).join(':');
+    const rightCompressed = normalizedGroups.slice(bestStart + bestLength).join(':');
+
+    if (leftCompressed && rightCompressed) return `${leftCompressed}::${rightCompressed}`;
+    if (leftCompressed) return `${leftCompressed}::`;
+    if (rightCompressed) return `::${rightCompressed}`;
+    return '::';
 };
 
 const isIpv6Loopback = (ip) => {
@@ -504,21 +571,47 @@ const isIpv6Loopback = (ip) => {
 };
 
 const isValidIPv6 = (ip) => {
-    const ipv6Regex = /^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|([0-9a-fA-F]{1,4}:){1,6}(:[0-9a-fA-F]{1,4}){1,6}|([0-9a-fA-F]{1,4}:){1,1}(:[0-9a-fA-F]{1,4}){1,7}|:|:(:[0-9a-fA-F]{1,4}){1,7}|::)$/;
-    return ipv6Regex.test(ip);
-}
+    if (typeof ip !== 'string') return false;
+    return net.isIP(ip.trim()) === 6;
+};
 
 const isValidIPv4 = (ip) => {
-    const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
-    if (!ipv4Regex.test(ip)) return false;
+    if (typeof ip !== 'string') return false;
+    return net.isIP(ip.trim()) === 4;
+};
 
-    // 各セクションが0～255の範囲に収まっているかチェック
-    return ip.split('.').every(num => parseInt(num, 10) >= 0 && parseInt(num, 10) <= 255);
-}
+const isLoopbackIPv4 = (ip) => {
+    if (!isValidIPv4(ip)) return false;
+    return Number.parseInt(ip.split('.')[0], 10) === 127;
+};
+
+const isPrivateIPv4 = (ip) => {
+    if (!isValidIPv4(ip)) return false;
+
+    const [a, b] = ip.split('.').map(Number);
+    return a === 10 ||
+        (a === 172 && b >= 16 && b <= 31) ||
+        (a === 192 && b === 168);
+};
+
+const isPrivateIPv6 = (ip) => {
+    if (!isValidIPv6(ip)) return false;
+
+    const expanded = expandIPv6(ip);
+    if (expanded.length === 0) return false;
+
+    const first = parseInt(expanded[0], 16);
+    return (first >= 0xfc00 && first <= 0xfdff) || (first >= 0xfe80 && first <= 0xfebf);
+};
 
 const isInvalidDnsServer = (dnsServer) => {
     const value = (dnsServer || '').trim();
-    return value === '' || value === 'localhost' || value === '127.0.0.1' || isIpv6Loopback(value) || value.startsWith('192.168.');
+    return value === '' ||
+        value === 'localhost' ||
+        isLoopbackIPv4(value) ||
+        isPrivateIPv4(value) ||
+        isIpv6Loopback(value) ||
+        isPrivateIPv6(value);
 };
 
 const isInvalidUdpSize = (udpSize) => {
@@ -527,7 +620,7 @@ const isInvalidUdpSize = (udpSize) => {
 };
 
 const isInvalidQueryType = (queryType) => {
-    const allowedTypes = ['A', 'AAAA', 'MX', 'NS', 'SOA', 'TXT', 'CNAME', 'DNAME', 'CAA', 'DNSKEY', 'DS', 'NSEC', 'NSEC3', 'RRSIG', 'SRV', 'HTTPS', 'SVCB', 'PTR', 'ANY', 'VERSION'];
+    const allowedTypes = ['A', 'AAAA', 'MX', 'NS', 'SOA', 'TXT', 'CNAME', 'DNAME', 'CAA', 'DNSKEY', 'DS', 'NSEC', 'NSEC3', 'RRSIG', 'SRV', 'HTTPS', 'SVCB', 'PTR', 'PTR-x', 'ANY', 'VERSION'];
     return !allowedTypes.includes(queryType);
 };
 
@@ -648,7 +741,8 @@ const server = http.createServer((req, res) => {
                             <option value="SRV" ${queryType === 'SRV' ? 'selected' : ''}>SRV (Service)</option>
                             <option value="HTTPS" ${queryType === 'HTTPS' ? 'selected' : ''}>HTTPS</option>
                             <option value="SVCB" ${queryType === 'SVCB' ? 'selected' : ''}>SVCB (Service Binding)</option>
-                            <option value="PTR" ${queryType === 'PTR' ? 'selected' : ''}>PTR (Pointer)</option>
+                            <option value="PTR" ${queryType === 'PTR' ? 'selected' : ''}>PTR (Pointer - 4.2.0.192.in-addr.arpa)</option>
+                            <option value="PTR-x" ${queryType === 'PTR-x' ? 'selected' : ''}>PTR-x (Pointer - 192.0.2.4)</option>
                             <option value="ANY" ${queryType === 'ANY' ? 'selected' : ''}>ANY</option>
                             <option value="VERSION" ${queryType === 'VERSION' ? 'selected' : ''}>VERSION (CHAOS/TXT/version.bind)</option>
                         </select>
@@ -801,6 +895,18 @@ const server = http.createServer((req, res) => {
     if (queryType === 'VERSION') {
         qType = 'TXT';
         qClass = 'CH';
+    } else if (queryType === 'PTR-x') {
+        qType = 'PTR';
+        if (isValidIPv4(domainName)) {
+            qName = `${reverseIPv4(domainName)}.in-addr.arpa`;
+        } else if (isValidIPv6(domainName)) {
+            qName = `${reverseIPv6(domainName)}.ip6.arpa`;
+        } else {
+            html += `<div class="result error"><p>エラー: PTR-xクエリーの対象ドメイン名は IPv4か IPv6のアドレスである必要があります。</p></div>`;
+            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(html + '</div></body></html>');
+            return;
+        }
     }
 
     if (qnameMinimisation) {

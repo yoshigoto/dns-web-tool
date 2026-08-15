@@ -569,8 +569,8 @@ const server = http.createServer((req, res) => {
                 body { font-family: sans-serif; margin: 0; padding: 20px; background: #f4f6f9; color: #333; }
                 .container { max-width: 800px; margin: 0 auto; padding: 25px; background: white; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
                 div { margin-bottom: 10px; }
-                .a-button { display: inline-block; padding: 10px 18px; background: #FF7B00; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 700; text-decoration: none; letter-spacing: 0.04em; box-shadow: 0 2px 6px rgba(0,0,0,0.12); transition: all 0.15s ease; }
-                .a-button:hover { background: #E66A00; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.16); }
+                .a-button { display: inline-block; padding: 10px 18px; background: rgb(250, 200, 150); color: #5a6472; border: none; border-radius: 8px; font-size: 16px; font-weight: 700; text-decoration: none; letter-spacing: 0.04em; box-shadow: 0 2px 6px rgba(0,0,0,0.12); transition: all 0.15s ease; }
+                .a-button:hover { background: rgb(200, 150, 100); transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.16); }
                 label { display: inline-block; font-weight: bold; }
                 .label-wide { width: 220px; }
                 .label-narrow { width: 194px; }

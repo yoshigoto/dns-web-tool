@@ -628,6 +628,11 @@ const isInvalidQueryType = (queryType) => {
     return !allowedTypes.includes(queryType);
 };
 
+const buildDnsFlags = (recursionDesired, checkingDisabled) => {
+    return (recursionDesired ? dnsPacket.RECURSION_DESIRED : 0) |
+           (checkingDisabled ? dnsPacket.CHECKING_DISABLED : 0);
+};
+
 const server = http.createServer((req, res) => {
     if (req.url === '/favicon.ico') {
         res.writeHead(204);
@@ -958,9 +963,7 @@ const server = http.createServer((req, res) => {
             }
         }
     }
-    console.log(`qName: ${qName}, qType: ${qType}, qClass: ${qClass}, qId: ${qId}, recursionDesired: ${recursionDesired}, checkingDisabled: ${checkingDisabled}`);
-    const dnsFlags = (recursionDesired ? dnsPacket.RECURSION_DESIRED : 0) |
-        (checkingDisabled ? dnsPacket.CHECKING_DISABLED : 0);
+    const dnsFlags = buildDnsFlags(recursionDesired, checkingDisabled);
     let queryPacket = {
         type: 'query',
         id: qId,
@@ -971,7 +974,6 @@ const server = http.createServer((req, res) => {
             name: qName
         }]
     };
-    console.log(queryPacket);
     if (edns0Enable) {
         const edns0Option = {
             type: 'OPT',

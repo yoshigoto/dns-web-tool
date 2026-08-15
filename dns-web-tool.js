@@ -765,7 +765,7 @@ const server = http.createServer((req, res) => {
 
     // UDP Payload Sizeのチェック
     if (!Number.isInteger(Number(udpSize)) || udpSize < 512 || 65535 < udpSize) {
-        html += `<div class="result error"><p>エラー: UDPメッセージサイズを入力し直してください。</p></div>`;
+        html += `<div class="result error"><p>エラー: UDPメッセージサイズを入力し直してください (512-65535)。</p></div>`;
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
         res.end(html + '</div></body></html>');
         return;

@@ -255,7 +255,7 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domai
     html += `<p><strong style="color: ${response.answers.length > 0 ? '#dd0000' : '#0000dd'};">ANSWER SECTION (${response.answers.length} 個) :</strong></p>`;
     if (rcode === 'SERVFAIL') {
         html += `<p style="color: red; margin: 0;">SERVFAIL: 応答したサーバー <code>${dnsServer}</code> で一時的なエラーが発生したか、設定に問題があります。</p>`;
-        if (recursionDesired && dnssecOk) {
+        if (recursionDesired && !checkingDisabled) {
             const displayData = addLinkToDisplayData(origin, pathname, dnsServer, domainName, queryType, recursionDesired, true,
                 sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType, 'こちら');
             html += `<p style="color: orange; margin: 0;">※DNSSEC検証に失敗した可能性があります。${displayData} をクリックしてみてください。</p>`;

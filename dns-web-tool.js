@@ -329,6 +329,9 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domai
                     }
                 } else if (answer.type === 'CNAME') {
                     // CNAMEレコードはデータを検索対象ドメイン名として扱い、後続の検索ができるようにする
+                    if (queryType === 'PTR-x') {
+                        queryType = 'PTR';
+                    }
                     displayData = addLinkToDisplayData(origin, pathname, 'a.root-servers.net', answer.data, queryType, false, checkingDisabled,
                         sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, 255, qnameType, answer.data);
                 } else if (answer.type === 'NS') {

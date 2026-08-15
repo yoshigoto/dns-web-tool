@@ -694,7 +694,7 @@ const server = http.createServer((req, res) => {
             </div>
             <div id="search-controls" style="margin-top: 15px; margin-bottom: 0px;">
                 <div id="search-toggle-panel">
-                    <button type="button" id="search-toggle" class="a-button" data-state="${shouldHideSearchForm ? 'show' : 'hide'}" onclick="const panel = document.getElementById('search-panel'); const toggle = document.getElementById('search-toggle'); if (panel.style.display === 'none') { panel.style.display='block'; toggle.textContent='非表示'; toggle.dataset.state='hide'; } else { panel.style.display='none'; toggle.textContent='再表示'; toggle.dataset.state='show'; }">${shouldHideSearchForm ? '再表示' : '非表示'}</button>
+                    <button type="button" id="search-toggle" class="a-button" data-state="${shouldHideSearchForm ? 'show' : 'hide'}" onclick="const panel = document.getElementById('search-panel'); const toggle = document.getElementById('search-toggle'); if (panel.style.display === 'none') { panel.style.display='block'; toggle.textContent='入力欄非表示'; toggle.dataset.state='hide'; } else { panel.style.display='none'; toggle.textContent='入力欄再表示'; toggle.dataset.state='show'; }">${shouldHideSearchForm ? '入力欄再表示' : '入力欄非表示'}</button>
                 </div>
             </div>
     `;

@@ -48,14 +48,14 @@ const escapeHtml = (str) => {
     });
 };
 
-const addLinkToDisplayData = (origin, pathname, dnsServer, domainName, queryType, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType, displayData, button=false) => {
+const addLinkToDisplayData = (origin, pathname, dnsServer, domainName, queryType, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType, displayData, button=false, extraQuery='') => {
     let html = '<a ';
     if (button) {
         html += 'class="a-button" ';
     }
     html += `href=${origin}${pathname}?server=${escapeHtml(dnsServer)}&name=${escapeHtml(domainName)}&type=${queryType}&rd=${recursionDesired ? '1' : '0'}`;
     html += `&tcp=${sendTcp ? '1' : '0'}&ipv6=${sendIpv6 ? '1' : '0'}&edns0=${edns0Enable ? '1' : '0'}&dnssec=${dnssecOk ? '1' : '0'}&udpsize=${escapeHtml(udpSize)}&nsid=${nsidEnable ? '1' : '0'}&mqtype=${escapeHtml(mQType)}`;
-    html += `&qmini=${qnameMinimisation ? '1' : '0'}&qposi=${qnamePosition}&qtype=${qnameType}>${displayData}</a>`;
+    html += `&qmini=${qnameMinimisation ? '1' : '0'}&qposi=${qnamePosition}&qtype=${qnameType}${extraQuery}>${displayData}</a>`;
     return html;
 };
 
@@ -553,8 +553,9 @@ const server = http.createServer((req, res) => {
     const mQType = escapeHtml(rawMQtype.trim());
     const shouldReturnToForm = params.get('back') === '1';
 
-    const resetQMiniHtml = addLinkToDisplayData(parsedUrl.origin, parsedUrl.pathname, 'a.root-servers.net', domainName, queryType, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, '255', qnameType, 'リセット', true);
-    const shouldHideSearchForm = parsedUrl.search !== '';
+    const shouldKeepSearchVisibleAfterReset = params.get('reset') === '1';
+    const resetQMiniHtml = addLinkToDisplayData(parsedUrl.origin, parsedUrl.pathname, 'a.root-servers.net', domainName, queryType, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, '255', qnameType, 'リセット', true, '&reset=1');
+    const shouldHideSearchForm = parsedUrl.search !== '' && !shouldKeepSearchVisibleAfterReset;
     const searchToggleState = shouldHideSearchForm ? 'display:none;' : '';
 
     // HTML (フォーム部分) の構築
@@ -566,9 +567,9 @@ const server = http.createServer((req, res) => {
             <title>DNSクエリー送信ツール</title>
             <style>
                 body { font-family: sans-serif; margin: 0; padding: 20px; background: #f4f6f9; color: #333; }
-                .container { max-width: 800px; margin: 0 auto; padding: 25px; background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+                .container { max-width: 800px; margin: 0 auto; padding: 25px; background: white; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
                 div { margin-bottom: 10px; }
-                .a-button { display: inline-block; padding: 10px 18px; background: #FF7B00; color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: 700; text-decoration: none; letter-spacing: 0.04em; box-shadow: 0 2px 6px rgba(0,0,0,0.12); transition: all 0.15s ease; }
+                .a-button { display: inline-block; padding: 10px 18px; background: #FF7B00; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 700; text-decoration: none; letter-spacing: 0.04em; box-shadow: 0 2px 6px rgba(0,0,0,0.12); transition: all 0.15s ease; }
                 .a-button:hover { background: #E66A00; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.16); }
                 label { display: inline-block; font-weight: bold; }
                 .label-wide { width: 220px; }
@@ -578,12 +579,15 @@ const server = http.createServer((req, res) => {
                 .input-narrow { width: 60px; }
                 input[type="submit"] { padding: 10px 25px; cursor: pointer; background: #007BFF; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 700; letter-spacing: 0.04em; box-shadow: 0 2px 6px rgba(0,0,0,0.12); transition: all 0.15s ease; }
                 input[type="submit"]:hover { background: #0056b3; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.16); }
-                #search-toggle { padding: 10px 18px; border: none; border-radius: 8px; color: white; font-size: 15px; font-weight: 700; letter-spacing: 0.04em; cursor: pointer; background: #1F8B4C; box-shadow: 0 2px 6px rgba(0,0,0,0.12); transition: all 0.15s ease; }
+                #search-toggle { padding: 10px 18px; border: none; border-radius: 8px; color: white; font-size: 16px; font-weight: 700; letter-spacing: 0.04em; cursor: pointer; background: #1F8B4C; box-shadow: 0 2px 6px rgba(0,0,0,0.12); transition: all 0.15s ease; }
                 #search-toggle:hover { background: #18733F; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.16); }
                 #search-toggle[data-state="hide"] { background: #5A6472; }
                 #search-toggle[data-state="hide"]:hover { background: #495362; }
+                #search-toggle-panel { display: inline-block; padding: 0; border: none; border-radius: 0; background: transparent; box-shadow: none; }
+                #search-panel { border: 1px solid #d0d7de; border-radius: 12px; padding: 14px 16px; background: #fafbfc; box-shadow: inset 0 1px 0 rgba(255,255,255,0.7); }
+                #search { margin: 0; }
                 input[readonly] { background-color: #f0f0f0; border: 1px solid #ccc; }
-                .result { margin-top: 30px; padding: 15px; border-radius: 6px; background: #f0f0f0; border-left: 6px solid #007BFF; white-space: pre; overflow-x: scroll; }
+                .result { padding: 15px; border-radius: 8px; background: #f0f0f0; border-left: 6px solid #007BFF; white-space: pre; overflow-x: scroll; }
                 .error { border-color: red; background: #fff0f0; }
                 .explanation { font-size: 90%; }
                 ul { padding-left: 20px; }
@@ -593,101 +597,105 @@ const server = http.createServer((req, res) => {
         <body>
         <div class="container">
             <h2>🔍 <a href=${parsedUrl.origin}${parsedUrl.pathname}>DNSクエリー送信ツール</a></h2>
-            <form id="search" action="search" method="GET" onsubmit="this.style.display='none'; document.getElementById('search-toggle').textContent='再表示'; document.getElementById('search-toggle').style.display='inline-block';" style="${searchToggleState}">
-                <div>
-                    <label for="server" class="label-wide">クエリー先DNSサーバー:</label>
-                    <input type="text" class="input-wide" id="server" name="server" value="${dnsServer}" placeholder="a.root-servers.net">
-                </div>
-                <div>
-                    <label for="name" class="label-wide">対象ドメイン名 (name):</label>
-                    <input type="text" class="input-wide" id="name" name="name" value="${domainName}" placeholder="example.com" autofocus>
-                </div>
-                <div>
-                    <label for="type" class="label-wide">クエリータイプ (type):</label>
-                    <select id="type" name="type">
-                        <option value="A" ${queryType === 'A' ? 'selected' : ''}>A (IPv4 address)</option>
-                        <option value="AAAA" ${queryType === 'AAAA' ? 'selected' : ''}>AAAA (IPv6 address)</option>
-                        <option value="MX" ${queryType === 'MX' ? 'selected' : ''}>MX (Mail Exchange)</option>
-                        <option value="NS" ${queryType === 'NS' ? 'selected' : ''}>NS (Name Server)</option>
-                        <option value="SOA" ${queryType === 'SOA' ? 'selected' : ''}>SOA (Start Of Authority)</option>
-                        <option value="TXT" ${queryType === 'TXT' ? 'selected' : ''}>TXT (Text)</option>
-                        <option value="CNAME" ${queryType === 'CNAME' ? 'selected' : ''}>CNAME (Canonical Name)</option>
-                        <option value="DNAME" ${queryType === 'DNAME' ? 'selected' : ''}>DNAME (Delegation Name)</option>
-                        <option value="CAA" ${queryType === 'CAA' ? 'selected' : ''}>CAA (Certification Authority Authorization)</option>
-                        <option value="DNSKEY" ${queryType === 'DNSKEY' ? 'selected' : ''}>DNSKEY</option>
-                        <option value="DS" ${queryType === 'DS' ? 'selected' : ''}>DS (Delegation Signer)</option>
-                        <option value="NSEC" ${queryType === 'NSEC' ? 'selected' : ''}>NSEC (NextSECure record)</option>
-                        <option value="NSEC3" ${queryType === 'NSEC3' ? 'selected' : ''}>NSEC3</option>
-                        <option value="RRSIG" ${queryType === 'RRSIG' ? 'selected' : ''}>RRSIG (Resource Record Signature)</option>
-                        <option value="SRV" ${queryType === 'SRV' ? 'selected' : ''}>SRV (Service)</option>
-                        <option value="HTTPS" ${queryType === 'HTTPS' ? 'selected' : ''}>HTTPS</option>
-                        <option value="SVCB" ${queryType === 'SVCB' ? 'selected' : ''}>SVCB (Service Binding)</option>
-                        <option value="PTR" ${queryType === 'PTR' ? 'selected' : ''}>PTR (Pointer)</option>
-                        <option value="ANY" ${queryType === 'ANY' ? 'selected' : ''}>ANY</option>
-                        <option value="VERSION" ${queryType === 'VERSION' ? 'selected' : ''}>VERSION (CHAOS/TXT/version.bind)</option>
-                    </select>
-                </div>
-                <div>
-                    <label for="rd" class="label-wide">再帰の要求 (RDフラグ):</label>
-                    <input type="checkbox" id="rd" name="rd" value="1" ${recursionDesired ? 'checked' : ''}>
-                    <label for="rd" style="font-weight:normal; width:auto;">(クエリー先がフルサービスリゾルバーのときは有効にする)</label>
-                </div>
-                <div style="margin-bottom: 5px;">
-                    <label for="qmini" class="label-wide">QNAME minimisation:</label>
-                    <input type="checkbox" id="qmini" name="qmini" value="1" ${qnameMinimisation ? 'checked' : ''}>
-                    <label for="qmini" style="font-weight:normal; width:auto;">(ラベル位置: ${qnamePosition})</label>
-                    <input type="text" class="input-narrow" id="qposi" name="qposi" value="${qnamePosition}" hidden>
-                </div>
-                <div style="background-color: #e0e0ff; margin: 5px 5px 10px 10px; padding: 5px 10px 5px 15px; border: 1px solid #ccc; border-radius: 8px;">
-                    <div style="margin: 5px 0px;">
-                        <label for="qtype" class="label-wide">クエリータイプ: </label>
-                        <label style="font-weight:normal; width:auto;"><input type="radio" id="qtype" name="qtype" value="A" ${qnameType === 'A' ? 'checked' : ''}>A/AAAA (RFC 9156)</label>
-                        <label style="font-weight:normal; width:auto;"><input type="radio" id="qtype" name="qtype" value="NS" ${qnameType === 'A' ? '' : 'checked'}>NS (RFC 7816)</label>
+            <div id="search-panel" style="${searchToggleState}">
+                <form id="search" action="search" method="GET" onsubmit="const panel = this.closest('#search-panel'); if (panel) { panel.style.display='none'; } document.getElementById('search-toggle').textContent='再表示'; document.getElementById('search-toggle').dataset.state='show';">
+                    <div>
+                        <label for="server" class="label-wide">クエリー先DNSサーバー:</label>
+                        <input type="text" class="input-wide" id="server" name="server" value="${dnsServer}" placeholder="a.root-servers.net">
                     </div>
-                </div>
-                <div style="margin-bottom: 5px;">
-                    <label for="edns0" class="label-wide">EDNS0の付与:</label>
-                    <input type="checkbox" id="edns0" name="edns0" value="1" ${edns0Enable ? 'checked' : ''}>
-                    <label for="edns0" style="font-weight:normal; width:auto;">(RFC 6891)</label>
-                </div>
-                <div style="background-color: #e0e0ff; margin: 5px 5px 10px 10px; padding: 5px 10px 5px 15px; border: 1px solid #ccc; border-radius: 8px;">
-                    <div style="margin: 5px 0px;">
-                        <label for="dnssec" class="label-wide">DNSSEC情報の要求:</label>
-                        <input type="checkbox" id="dnssec" name="dnssec" value="1" ${dnssecOk ? 'checked' : ''}>
-                        <label for="dnssec" style="font-weight:normal; width:auto;">DNSSEC OK (DO) フラグを立てる</label>
+                    <div>
+                        <label for="name" class="label-wide">対象ドメイン名 (name):</label>
+                        <input type="text" class="input-wide" id="name" name="name" value="${domainName}" placeholder="example.com" autofocus required>
                     </div>
-                    <div style="margin: 5px 0px;">
-                        <label for="udpsize" class="label-wide">UDPメッセージサイズ:</label>
-                        <input type="text" class="input-narrow" id="udpsize" name="udpsize" value="${udpSize}" placeholder="1232" required>
-                        <label for="udpsize" style="font-weight:normal; width:auto;">byte</label>
+                    <div>
+                        <label for="type" class="label-wide">クエリータイプ (type):</label>
+                        <select id="type" name="type">
+                            <option value="A" ${queryType === 'A' ? 'selected' : ''}>A (IPv4 address)</option>
+                            <option value="AAAA" ${queryType === 'AAAA' ? 'selected' : ''}>AAAA (IPv6 address)</option>
+                            <option value="MX" ${queryType === 'MX' ? 'selected' : ''}>MX (Mail Exchange)</option>
+                            <option value="NS" ${queryType === 'NS' ? 'selected' : ''}>NS (Name Server)</option>
+                            <option value="SOA" ${queryType === 'SOA' ? 'selected' : ''}>SOA (Start Of Authority)</option>
+                            <option value="TXT" ${queryType === 'TXT' ? 'selected' : ''}>TXT (Text)</option>
+                            <option value="CNAME" ${queryType === 'CNAME' ? 'selected' : ''}>CNAME (Canonical Name)</option>
+                            <option value="DNAME" ${queryType === 'DNAME' ? 'selected' : ''}>DNAME (Delegation Name)</option>
+                            <option value="CAA" ${queryType === 'CAA' ? 'selected' : ''}>CAA (Certification Authority Authorization)</option>
+                            <option value="DNSKEY" ${queryType === 'DNSKEY' ? 'selected' : ''}>DNSKEY</option>
+                            <option value="DS" ${queryType === 'DS' ? 'selected' : ''}>DS (Delegation Signer)</option>
+                            <option value="NSEC" ${queryType === 'NSEC' ? 'selected' : ''}>NSEC (NextSECure record)</option>
+                            <option value="NSEC3" ${queryType === 'NSEC3' ? 'selected' : ''}>NSEC3</option>
+                            <option value="RRSIG" ${queryType === 'RRSIG' ? 'selected' : ''}>RRSIG (Resource Record Signature)</option>
+                            <option value="SRV" ${queryType === 'SRV' ? 'selected' : ''}>SRV (Service)</option>
+                            <option value="HTTPS" ${queryType === 'HTTPS' ? 'selected' : ''}>HTTPS</option>
+                            <option value="SVCB" ${queryType === 'SVCB' ? 'selected' : ''}>SVCB (Service Binding)</option>
+                            <option value="PTR" ${queryType === 'PTR' ? 'selected' : ''}>PTR (Pointer)</option>
+                            <option value="ANY" ${queryType === 'ANY' ? 'selected' : ''}>ANY</option>
+                            <option value="VERSION" ${queryType === 'VERSION' ? 'selected' : ''}>VERSION (CHAOS/TXT/version.bind)</option>
+                        </select>
                     </div>
-                    <div style="margin: 5px 0px;">
-                        <label for="nsid" class="label-wide">NSIDの要求:</label>
-                        <input type="checkbox" id="nsid" name="nsid" value="1" ${nsidEnable ? 'checked' : ''}>
-                        <label for="nsid" style="font-weight:normal; width:auto;">(RFC 5001)</label>
+                    <div>
+                        <label for="rd" class="label-wide">再帰の要求 (RDフラグ):</label>
+                        <input type="checkbox" id="rd" name="rd" value="1" ${recursionDesired ? 'checked' : ''}>
+                        <label for="rd" style="font-weight:normal; width:auto;">(クエリー先がフルサービスリゾルバーのときは有効にする)</label>
                     </div>
-                    <div style="margin: 5px 0px;">
-                        <label for="mqtype" class="label-wide">MQTYPE-Query:</label>
-                        <input type="text" class="input-wide" id="mqtype" name="mqtype" value="${mQType}" placeholder="AAAA,TXT">
-                        <label for="mqtype" style="font-weight:normal; width:auto;">(RFC 10029) <b><span style="color: red;">※未テスト</span></b></label>
+                    <div style="margin-bottom: 5px;">
+                        <label for="qmini" class="label-wide">QNAME minimisation:</label>
+                        <input type="checkbox" id="qmini" name="qmini" value="1" ${qnameMinimisation ? 'checked' : ''}>
+                        <label for="qmini" style="font-weight:normal; width:auto;">(ラベル位置: ${qnamePosition})</label>
+                        <input type="text" class="input-narrow" id="qposi" name="qposi" value="${qnamePosition}" hidden>
                     </div>
+                    <div style="background-color: #e0e0ff; margin: 5px 5px 10px 10px; padding: 5px 10px 5px 15px; border: 1px solid #ccc; border-radius: 8px;">
+                        <div style="margin: 5px 0px;">
+                            <label for="qtype" class="label-wide">クエリータイプ: </label>
+                            <label style="font-weight:normal; width:auto;"><input type="radio" id="qtype" name="qtype" value="A" ${qnameType === 'A' ? 'checked' : ''}>A/AAAA (RFC 9156)</label>
+                            <label style="font-weight:normal; width:auto;"><input type="radio" id="qtype" name="qtype" value="NS" ${qnameType === 'A' ? '' : 'checked'}>NS (RFC 7816)</label>
+                        </div>
+                    </div>
+                    <div style="margin-bottom: 5px;">
+                        <label for="edns0" class="label-wide">EDNS0の付与:</label>
+                        <input type="checkbox" id="edns0" name="edns0" value="1" ${edns0Enable ? 'checked' : ''}>
+                        <label for="edns0" style="font-weight:normal; width:auto;">(RFC 6891)</label>
+                    </div>
+                    <div style="background-color: #e0e0ff; margin: 5px 5px 10px 10px; padding: 5px 10px 5px 15px; border: 1px solid #ccc; border-radius: 8px;">
+                        <div style="margin: 5px 0px;">
+                            <label for="dnssec" class="label-wide">DNSSEC情報の要求:</label>
+                            <input type="checkbox" id="dnssec" name="dnssec" value="1" ${dnssecOk ? 'checked' : ''}>
+                            <label for="dnssec" style="font-weight:normal; width:auto;">DNSSEC OK (DO) フラグを立てる</label>
+                        </div>
+                        <div style="margin: 5px 0px;">
+                            <label for="udpsize" class="label-wide">UDPメッセージサイズ:</label>
+                            <input type="text" class="input-narrow" id="udpsize" name="udpsize" value="${udpSize}" placeholder="1232" required>
+                            <label for="udpsize" style="font-weight:normal; width:auto;">byte</label>
+                        </div>
+                        <div style="margin: 5px 0px;">
+                            <label for="nsid" class="label-wide">NSIDの要求:</label>
+                            <input type="checkbox" id="nsid" name="nsid" value="1" ${nsidEnable ? 'checked' : ''}>
+                            <label for="nsid" style="font-weight:normal; width:auto;">(RFC 5001)</label>
+                        </div>
+                        <div style="margin: 5px 0px;">
+                            <label for="mqtype" class="label-wide">MQTYPE-Query:</label>
+                            <input type="text" class="input-wide" id="mqtype" name="mqtype" value="${mQType}" placeholder="AAAA,TXT">
+                            <label for="mqtype" style="font-weight:normal; width:auto;">(RFC 10029) <b><span style="color: red;">※未テスト</span></b></label>
+                        </div>
+                    </div>
+                    <div>
+                        <label for="tcp" class="label-wide">TCP送受信:</label>
+                        <input type="checkbox" id="tcp" name="tcp" value="1" ${sendTcp ? 'checked' : ''}>
+                        <label for="tcp" style="font-weight:normal; width:auto;">(レスポンスに TCフラグが立っていたときは有効にする)</label>
+                    </div>
+                    <div>
+                        <label for="ipv6" class="label-wide">IPv6送受信:</label>
+                        <input type="checkbox" id="ipv6" name="ipv6" value="1" ${sendIpv6 ? 'checked' : ''}>
+                        <label for="ipv6" style="font-weight:normal; width:auto;">(UDP送受信の際に IPv6で接続したいときは有効にする)</label>
+                    </div>
+                    <div style="margin-bottom: 0px;">
+                        <input type="submit" value="DNSパケットを送信"> ${resetQMiniHtml}
+                    </div>
+                </form>
+            </div>
+            <div id="search-controls" style="margin-top: 15px; margin-bottom: 0px;">
+                <div id="search-toggle-panel">
+                    <button type="button" id="search-toggle" class="a-button" data-state="${shouldHideSearchForm ? 'show' : 'hide'}" onclick="const panel = document.getElementById('search-panel'); const toggle = document.getElementById('search-toggle'); if (panel.style.display === 'none') { panel.style.display='block'; toggle.textContent='非表示'; toggle.dataset.state='hide'; } else { panel.style.display='none'; toggle.textContent='再表示'; toggle.dataset.state='show'; }">${shouldHideSearchForm ? '再表示' : '非表示'}</button>
                 </div>
-                <div>
-                    <label for="tcp" class="label-wide">TCP送受信:</label>
-                    <input type="checkbox" id="tcp" name="tcp" value="1" ${sendTcp ? 'checked' : ''}>
-                    <label for="tcp" style="font-weight:normal; width:auto;">(レスポンスに TCフラグが立っていたときは有効にする)</label>
-                </div>
-                <div>
-                    <label for="ipv6" class="label-wide">IPv6送受信:</label>
-                    <input type="checkbox" id="ipv6" name="ipv6" value="1" ${sendIpv6 ? 'checked' : ''}>
-                    <label for="ipv6" style="font-weight:normal; width:auto;">(UDP送受信の際に IPv6で接続したいときは有効にする)</label>
-                </div>
-                <div>
-                    <input type="submit" value="DNSパケットを送信"> ${resetQMiniHtml}
-                </div>
-            </form>
-            <div id="search-controls" style="margin-top: 10px;">
-                <button type="button" id="search-toggle" class="a-button" data-state="${shouldHideSearchForm ? 'show' : 'hide'}" onclick="const form = document.getElementById('search'); const toggle = document.getElementById('search-toggle'); if (form.style.display === 'none') { form.style.display='block'; toggle.textContent='非表示'; toggle.dataset.state='hide'; } else { form.style.display='none'; toggle.textContent='再表示'; toggle.dataset.state='show'; }">${shouldHideSearchForm ? '再表示' : '非表示'}</button>
             </div>
     `;
 

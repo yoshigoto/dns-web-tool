@@ -516,6 +516,21 @@ const isValidIPv4 = (ip) => {
     return ip.split('.').every(num => parseInt(num, 10) >= 0 && parseInt(num, 10) <= 255);
 }
 
+const isInvalidDnsServer = (dnsServer) => {
+    const value = (dnsServer || '').trim();
+    return value === '' || value === 'localhost' || value === '127.0.0.1' || isIpv6Loopback(value) || value.startsWith('192.168.');
+};
+
+const isInvalidUdpSize = (udpSize) => {
+    const numeric = Number(udpSize);
+    return !Number.isInteger(numeric) || numeric < 512 || 65535 < numeric;
+};
+
+const isInvalidQueryType = (queryType) => {
+    const allowedTypes = ['A', 'AAAA', 'MX', 'NS', 'SOA', 'TXT', 'CNAME', 'DNAME', 'CAA', 'DNSKEY', 'DS', 'NSEC', 'NSEC3', 'RRSIG', 'SRV', 'HTTPS', 'SVCB', 'PTR', 'ANY', 'VERSION'];
+    return !allowedTypes.includes(queryType);
+};
+
 const server = http.createServer((req, res) => {
     if (req.url === '/favicon.ico') {
         res.writeHead(204);
@@ -552,10 +567,16 @@ const server = http.createServer((req, res) => {
     const udpSize = escapeHtml(rawUdpSize.trim());
     const mQType = escapeHtml(rawMQtype.trim());
     const shouldReturnToForm = params.get('back') === '1';
-
     const shouldKeepSearchVisibleAfterReset = params.get('reset') === '1';
+    const shouldShowSearchPanelForError =
+        shouldReturnToForm ||
+        shouldKeepSearchVisibleAfterReset ||
+        isInvalidDnsServer(rawDnsServer) ||
+        isInvalidUdpSize(rawUdpSize) ||
+        isInvalidQueryType(rawQueryType);
+
     const resetQMiniHtml = addLinkToDisplayData(parsedUrl.origin, parsedUrl.pathname, 'a.root-servers.net', domainName, queryType, recursionDesired, sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, '255', qnameType, 'リセット', true, '&reset=1');
-    const shouldHideSearchForm = parsedUrl.search !== '' && !shouldKeepSearchVisibleAfterReset;
+    const shouldHideSearchForm = parsedUrl.search !== '' && !shouldKeepSearchVisibleAfterReset && !shouldShowSearchPanelForError;
     const searchToggleState = shouldHideSearchForm ? 'display:none;' : '';
 
     // HTML (フォーム部分) の構築
@@ -746,26 +767,24 @@ const server = http.createServer((req, res) => {
     }
 
     // クエリータイプのホワイトリストチェック
-    const allowedTypes = ['A', 'AAAA', 'MX', 'NS', 'SOA', 'TXT', 'CNAME', 'DNAME', 'CAA', 'DNSKEY', 'DS', 'NSEC', 'NSEC3', 'RRSIG', 'SRV', 'HTTPS', 'SVCB', 'PTR', 'ANY', 'VERSION'];
-    if (!allowedTypes.includes(queryType)) {
-        html += `<div class="result error"><p>エラー: 不正なクエリータイプです。</p></div>`;
+    if (isInvalidQueryType(queryType)) {
+        html += `<div class="result error"><p>エラー: 不正なクエリータイプです (${queryType} は不正です)。</p></div>`;
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
         res.end(html + '</div></body></html>');
         return;
     }
 
     // 対象DNSサーバーのチェック
-    const rejectedServer = ['localhost', '127.0.0.1'];
-    if (rejectedServer.includes(dnsServer) || isIpv6Loopback(dnsServer) || dnsServer.startsWith("192.168.")) {
-        html += `<div class="result error"><p>エラー: DNSサーバー (${dnsServer}) を選択し直してください。</p></div>`;
+    if (isInvalidDnsServer(dnsServer)) {
+        html += `<div class="result error"><p>エラー: DNSサーバーを選択し直してください (${dnsServer} は不正です)。</p></div>`;
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
         res.end(html + '</div></body></html>');
         return;
     }
 
     // UDP Payload Sizeのチェック
-    if (!Number.isInteger(Number(udpSize)) || udpSize < 512 || 65535 < udpSize) {
-        html += `<div class="result error"><p>エラー: UDPメッセージサイズを入力し直してください (値の有効範囲：512～65535)。</p></div>`;
+    if (isInvalidUdpSize(udpSize)) {
+        html += `<div class="result error"><p>エラー: UDPメッセージサイズを入力し直してください (${udpSize} は不正です)。</p></div>`;
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
         res.end(html + '</div></body></html>');
         return;

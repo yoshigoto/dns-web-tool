@@ -804,20 +804,22 @@ const server = http.createServer((req, res) => {
                     <div style="background-color: #e0e0ff; margin: 5px 5px 10px 10px; padding: 5px 10px 5px 15px; border: 1px solid #ccc; border-radius: 8px;">
                         <div style="margin: 5px 0px;">
                             <label for="qtype" class="label-wide">クエリータイプ:</label>
-                            <label style="font-weight:normal; width:auto;"><input type="radio" id="qtype" name="qtype" value="A" ${qnameType === 'A' ? 'checked' : ''}>A/AAAA (RFC 9156)</label>
-                            <label style="font-weight:normal; width:auto;"><input type="radio" id="qtype" name="qtype" value="NS" ${qnameType === 'A' ? '' : 'checked'}>NS (RFC 7816)</label>
+                            <label style="font-weight:normal; width:auto;"><input type="radio" id="qtype" name="qtype" value="A" ${qnameType === 'A' ? 'checked' : ''}>A/AAAA
+                                (<a href="https://datatracker.ietf.org/doc/html/rfc9156" target="_blank">RFC 9156</a>)</label>
+                            <label style="font-weight:normal; width:auto;"><input type="radio" id="qtype" name="qtype" value="NS" ${qnameType === 'A' ? '' : 'checked'}>NS
+                                (<a href="https://datatracker.ietf.org/doc/html/rfc7816" target="_blank">RFC 7816</a>)</label>
                         </div>
                     </div>
                     <div style="margin-bottom: 5px;">
                         <label for="edns0" class="label-wide">EDNS0の付与:</label>
                         <input type="checkbox" id="edns0" name="edns0" value="1" ${edns0Enable ? 'checked' : ''}>
-                        <label for="edns0" style="font-weight:normal; width:auto;">(RFC 6891)</label>
+                        <label for="edns0" style="font-weight:normal; width:auto;">(<a href="https://datatracker.ietf.org/doc/html/rfc6891" target="_blank">RFC 6891</a>)</label>
                     </div>
                     <div style="background-color: #e0e0ff; margin: 5px 5px 10px 10px; padding: 5px 10px 5px 15px; border: 1px solid #ccc; border-radius: 8px;">
                         <div style="margin: 5px 0px;">
                             <label for="dnssec" class="label-wide">DNSSEC情報の要求 (DO):</label>
                             <input type="checkbox" id="dnssec" name="dnssec" value="1" ${dnssecOk ? 'checked' : ''}>
-                            <label for="dnssec" style="font-weight:normal; width:auto;">(RFC 3225)</label>
+                            <label for="dnssec" style="font-weight:normal; width:auto;">(<a href="https://datatracker.ietf.org/doc/html/rfc3225" target="_blank">RFC 3225</a>)</label>
                         </div>
                         <div style="margin: 5px 0px;">
                             <label for="udpsize" class="label-wide">UDPメッセージサイズ:</label>
@@ -827,12 +829,13 @@ const server = http.createServer((req, res) => {
                         <div style="margin: 5px 0px;">
                             <label for="nsid" class="label-wide">NSIDの要求:</label>
                             <input type="checkbox" id="nsid" name="nsid" value="1" ${nsidEnable ? 'checked' : ''}>
-                            <label for="nsid" style="font-weight:normal; width:auto;">(RFC 5001)</label>
+                            <label for="nsid" style="font-weight:normal; width:auto;">(<a href="https://datatracker.ietf.org/doc/html/rfc5001" target="_blank">RFC 5001</a>)</label>
                         </div>
                         <div style="margin: 5px 0px;">
                             <label for="mqtype" class="label-wide">MQTYPE-Query:</label>
                             <input type="text" class="input-wide" id="mqtype" name="mqtype" value="${mQType}" placeholder="AAAA,TXT">
-                            <label for="mqtype" style="font-weight:normal; width:auto;">(RFC 10029) <b><span style="color: red;">※未テスト</span></b></label>
+                            <label for="mqtype" style="font-weight:normal; width:auto;">(<a href="https://datatracker.ietf.org/doc/html/rfc10029" target="_blank">RFC 10029</a>)
+                            <b><span style="color: red;">※未テスト</span></b></label>
                         </div>
                     </div>
                     <div>

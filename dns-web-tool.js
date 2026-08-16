@@ -751,7 +751,7 @@ const server = http.createServer((req, res) => {
                     </div>
                     <div>
                         <label for="name" class="label-wide">対象ドメイン名 (name):</label>
-                        <input type="text" class="input-wide" id="name" name="name" value="${domainName}" placeholder="example.com" autofocus required>
+                        <input type="text" class="input-wide" id="name" name="name" value="${domainName}" placeholder="example.com" autofocus>
                     </div>
                     <div>
                         <label for="type" class="label-wide">クエリータイプ (type):</label>

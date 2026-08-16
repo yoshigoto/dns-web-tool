@@ -204,7 +204,7 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domai
     html += '<div class="result"><h3>--- DNSレスポンス解析結果 ---</h3>';
     html += '<p><strong>基本情報:</strong></p>';
     html += '<ul>';
-    html += `<li>プロトコル: <code>${sendTcp ? 'TCP' : 'UDP'}</code>, 応答サイズ: <code>${bytesRead}</code>byte</li>`;
+    html += `<li>プロトコル: <code>${sendTcp ? 'TCP' : 'UDP'}</code> / 応答サイズ: <code>${bytesRead}</code>byte</li>`;
     html += `<li>応答したサーバー: <code>${dnsServer}</code></li>`;
     html += `<li>クエリーID: <code>${queryId} (${response.id === queryId ? '一致' : '不一致'})</code></li>`;
 

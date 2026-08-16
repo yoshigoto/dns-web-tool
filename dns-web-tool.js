@@ -357,10 +357,10 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domai
                         sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, 255, qnameType, answer.data.exchange);
                 } else if (answer.type === 'PTR') {
                     displayData = addLinkToDisplayData(origin, pathname, 'a.root-servers.net', answer.data, 'A', false, checkingDisabled,
-                        sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, 255, qnameType, answer.data);
+                        sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, false, 255, qnameType, answer.data);
                 } else if (answer.type === 'A' || answer.type === 'AAAA') {
                     displayData = addLinkToDisplayData(origin, pathname, 'a.root-servers.net', answer.data, 'PTR-x', false, checkingDisabled,
-                        sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, 255, qnameType, answer.data);
+                        sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, false, 255, qnameType, answer.data);
                 } else if (typeof answer.data === 'object') {
                     // オブジェクト構造を持つデータ用
                     displayData = escapeHtml(JSON.stringify(answer.data));

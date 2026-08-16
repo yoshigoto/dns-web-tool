@@ -443,7 +443,7 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domai
                                 const length  = buffer.readUInt16BE(0);	// Size (in octets) of OPTION-DATA
                                 for (let offset = 0; offset < length; offset += 2) {
                                     const type = buffer.readUInt16BE(offset + 2);
-                                    mQTypeString += `dnsTypes.toString(type),`;
+                                    mQTypeString += `${dnsTypes.toString(type)},`;
                                 }
                                 if (mQTypeString !== '') {
                                     mQTypeString = mQTypeString.slice(0, -1);
@@ -699,8 +699,6 @@ const server = http.createServer((req, res) => {
         isInvalidUdpSize(rawUdpSize) ||
         isInvalidQueryType(rawQueryType);
 
-    const recommendedEdns0 = addLinkToDisplayData(parsedUrl.origin, parsedUrl.pathname, dnsServer, domainName, queryType, recursionDesired, checkingDisabled,
-        sendTcp, sendIpv6, true, true, '1232', true, mQType, qnameMinimisation, qnamePosition, qnameType, 'EDNS0オススメ', true, '&reset=1');
     const resetQMiniHtml = addLinkToDisplayData(parsedUrl.origin, parsedUrl.pathname, 'a.root-servers.net', domainName, queryType, recursionDesired, checkingDisabled,
         sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, '255', qnameType, 'Qminiリセット', true, '&reset=1');
     const shouldHideSearchForm = parsedUrl.search !== '' && !shouldKeepSearchVisibleAfterReset && !shouldShowSearchPanelForError;
@@ -847,7 +845,7 @@ const server = http.createServer((req, res) => {
                         <label for="ipv6" style="font-weight:normal; width:auto;">(UDP送受信の際に IPv6で接続したいときはチェック)</label>
                     </div>
                     <div style="margin-bottom: 0px;">
-                        <input type="submit" value="DNSパケットを送信"> ${recommendedEdns0} ${resetQMiniHtml}
+                        <input type="submit" value="DNSパケットを送信"> ${resetQMiniHtml}
                     </div>
                 </form>
             </div>
@@ -873,12 +871,6 @@ const server = http.createServer((req, res) => {
         html +=         `<li>AUTHORITYや ADDITIONALの情報に含まれるドメイン名 (NS) や IPアドレス (A, AAAA) をクリックすることで、<a href="https://jprs.jp/glossary/index.php?ID=0152" target="_blank">委任</a>を辿る (非再帰検索/反復検索を体験する) ことができます。</li>`
         html +=       `</ul>`
         html +=     `<li>「クエリー先DNSサーバー」は別の<a href="https://jprs.jp/glossary/index.php?ID=0145">権威サーバー</a>のドメイン名か IPアドレスを入力することもできます。</li>`
-        html +=     `<li>「EDNS0オススメ」をクリックすることで、EDNS0関連のパラメーターを最適な値に設定できます。</li>`
-        html +=       '<ul>'
-        html +=         '<li>「EDNS0の付与」にチェックを入れます。</li>'
-        html +=         '<li>「DNSSEC情報の要求 (DO)」にチェックを入れます。</li>'
-        html +=         '<li>「NSIDの要求」にチェックを入れます。</li>'
-        html +=       '</ul>'
         html +=     `<li>「Qminiリセット」をクリックすることで、各種パラメーターを保持しつつ、以下のパラメーターをデフォルト値に戻します。</li>`
         html +=       '<ul>'
         html +=         '<li>「クエリー先DNSサーバー」を「a.root-servers.net」にします。</li>'

@@ -330,13 +330,8 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domai
                     }
                 } else if (answer.type === 'CNAME') {
                     // CNAMEレコードはデータを検索対象ドメイン名として扱い、後続の検索ができるようにする
-                    if (queryType === 'PTR-x') {
-                        displayData = addLinkToDisplayData(origin, pathname, 'a.root-servers.net', answer.data, 'PTR', false, checkingDisabled,
-                            sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, 255, qnameType, answer.data);
-                    } else {
-                        displayData = addLinkToDisplayData(origin, pathname, 'a.root-servers.net', answer.data, queryType, false, checkingDisabled,
-                            sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, 255, qnameType, answer.data);
-                    }
+                    displayData = addLinkToDisplayData(origin, pathname, 'a.root-servers.net', answer.data, queryType, false, checkingDisabled,
+                        sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, 255, qnameType, answer.data);
                 } else if (answer.type === 'NS') {
                     if (qnameMinimisation) {
                         if (answer.name === domainName) {
@@ -690,7 +685,7 @@ const server = http.createServer((req, res) => {
     // 画面表示用にすべての入力値をエスケープ (サニタイズ)
     const dnsServer = escapeHtml(rawDnsServer.trim());
     let domainName = escapeHtml(rawDomainName.trim());
-    const queryType = escapeHtml(rawQueryType);
+    let queryType = escapeHtml(rawQueryType);
     let qnamePosition = escapeHtml(rawQnamePosition.trim());
     const qnameType = escapeHtml(rawQnameType) === 'NS' ? 'NS' : 'A';
     const udpSize = escapeHtml(rawUdpSize.trim());
@@ -962,6 +957,8 @@ const server = http.createServer((req, res) => {
             res.end(html + '</div></body></html>');
             return;
         }
+        domainName = qName;
+        queryType = qType;
     }
 
     if (qnameMinimisation) {

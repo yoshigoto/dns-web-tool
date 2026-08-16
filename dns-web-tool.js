@@ -365,7 +365,7 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domai
                 }
             }
             const answerType = replaceUnknownRrTypeToKnown(escapeHtml(answer.type));
-            html += `<li><strong>[${answerType}]</strong> ${escapeHtml(answer.name)} &rarr; <code>${displayData}</code> (TTL: ${parseInt(answer.ttl, 10)}秒)</li>`;
+            html += `<li><span style="color: #dd0000;"><strong>[${answerType}]</strong> ${escapeHtml(answer.name)}</span> &rarr; <code>${displayData}</code> (TTL: ${parseInt(answer.ttl, 10)}秒)</li>`;
         });
         html += '</ul>';
     }

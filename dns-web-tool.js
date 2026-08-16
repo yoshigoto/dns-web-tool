@@ -817,7 +817,7 @@ const server = http.createServer((req, res) => {
                         <div style="margin: 5px 0px;">
                             <label for="dnssec" class="label-wide">DNSSEC情報の要求 (DO):</label>
                             <input type="checkbox" id="dnssec" name="dnssec" value="1" ${dnssecOk ? 'checked' : ''}>
-                            <label for="dnssec" style="font-weight:normal; width:auto;">(DNSSEC OKフラグを立てる)</label>
+                            <label for="dnssec" style="font-weight:normal; width:auto;">(RFC 3225)</label>
                         </div>
                         <div style="margin: 5px 0px;">
                             <label for="udpsize" class="label-wide">UDPメッセージサイズ:</label>

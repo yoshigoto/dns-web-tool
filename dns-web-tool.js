@@ -789,7 +789,7 @@ const server = http.createServer((req, res) => {
                         <input type="checkbox" id="rd" name="rd" value="1" ${recursionDesired ? 'checked' : ''}>
                         <label for="rd" style="font-weight:normal; width:auto;">(クエリー先がフルサービスリゾルバーのときはチェック)</label>
                     </div>
-                    <div style="background-color: #e0e0ff; margin: 5px 5px 10px 10px; padding: 5px 10px 5px 15px; border: 1px solid #ccc; border-radius: 8px;">
+                    <div style="background-color: #f0f0ff; margin: 5px 5px 10px 10px; padding: 5px 10px 5px 15px; border: 1px solid #ccc; border-radius: 8px;">
                         <div style="margin: 5px 0px;">
                             <label for="cd" class="label-wide">チェックの無効化 (CD):</label>
                             <input type="checkbox" id="cd" name="cd" value="1" ${checkingDisabled ? 'checked' : ''}>
@@ -802,7 +802,7 @@ const server = http.createServer((req, res) => {
                         <label for="qmini" style="font-weight:normal; width:auto;">(ラベル位置: ${qnamePosition})</label>
                         <input type="text" class="input-narrow" id="qposi" name="qposi" value="${qnamePosition}" hidden>
                     </div>
-                    <div style="background-color: #e0e0ff; margin: 5px 5px 10px 10px; padding: 5px 10px 5px 15px; border: 1px solid #ccc; border-radius: 8px;">
+                    <div style="background-color: #f0f0ff; margin: 5px 5px 10px 10px; padding: 5px 10px 5px 15px; border: 1px solid #ccc; border-radius: 8px;">
                         <div style="margin: 5px 0px;">
                             <label for="qtype" class="label-wide">クエリータイプ:</label>
                             <label style="font-weight:normal; width:auto;"><input type="radio" id="qtype" name="qtype" value="A" ${qnameType === 'A' ? 'checked' : ''}>A/AAAA
@@ -816,7 +816,7 @@ const server = http.createServer((req, res) => {
                         <input type="checkbox" id="edns0" name="edns0" value="1" ${edns0Enable ? 'checked' : ''}>
                         <label for="edns0" style="font-weight:normal; width:auto;">(<a href="https://datatracker.ietf.org/doc/html/rfc6891" target="_blank">RFC 6891</a>)</label>
                     </div>
-                    <div style="background-color: #e0e0ff; margin: 5px 5px 10px 10px; padding: 5px 10px 5px 15px; border: 1px solid #ccc; border-radius: 8px;">
+                    <div style="background-color: #f0f0ff; margin: 5px 5px 10px 10px; padding: 5px 10px 5px 15px; border: 1px solid #ccc; border-radius: 8px;">
                         <div style="margin: 5px 0px;">
                             <label for="dnssec" class="label-wide">DNSSEC情報の要求 (DO):</label>
                             <input type="checkbox" id="dnssec" name="dnssec" value="1" ${dnssecOk ? 'checked' : ''}>

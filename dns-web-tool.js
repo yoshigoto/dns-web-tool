@@ -786,13 +786,13 @@ const server = http.createServer((req, res) => {
                     <div>
                         <label for="rd" class="label-wide">再帰の要求 (RD):</label>
                         <input type="checkbox" id="rd" name="rd" value="1" ${recursionDesired ? 'checked' : ''}>
-                        <label for="rd" style="font-weight:normal; width:auto;">(クエリー先がフルサービスリゾルバーのときは有効にする)</label>
+                        <label for="rd" style="font-weight:normal; width:auto;">(クエリー先がフルサービスリゾルバーのときはチェック)</label>
                     </div>
                     <div style="background-color: #e0e0ff; margin: 5px 5px 10px 10px; padding: 5px 10px 5px 15px; border: 1px solid #ccc; border-radius: 8px;">
                         <div style="margin: 5px 0px;">
                             <label for="cd" class="label-wide">チェックの無効化 (CD):</label>
                             <input type="checkbox" id="cd" name="cd" value="1" ${checkingDisabled ? 'checked' : ''}>
-                            <label for="cd" style="font-weight:normal; width:auto;">(DNSSEC検証を無効化する場合は有効にする)</label>
+                            <label for="cd" style="font-weight:normal; width:auto;">(DNSSEC検証を無効化したいときはチェック)</label>
                         </div>
                     </div>
                     <div style="margin-bottom: 5px;">
@@ -803,7 +803,7 @@ const server = http.createServer((req, res) => {
                     </div>
                     <div style="background-color: #e0e0ff; margin: 5px 5px 10px 10px; padding: 5px 10px 5px 15px; border: 1px solid #ccc; border-radius: 8px;">
                         <div style="margin: 5px 0px;">
-                            <label for="qtype" class="label-wide">クエリータイプ: </label>
+                            <label for="qtype" class="label-wide">クエリータイプ:</label>
                             <label style="font-weight:normal; width:auto;"><input type="radio" id="qtype" name="qtype" value="A" ${qnameType === 'A' ? 'checked' : ''}>A/AAAA (RFC 9156)</label>
                             <label style="font-weight:normal; width:auto;"><input type="radio" id="qtype" name="qtype" value="NS" ${qnameType === 'A' ? '' : 'checked'}>NS (RFC 7816)</label>
                         </div>
@@ -815,9 +815,9 @@ const server = http.createServer((req, res) => {
                     </div>
                     <div style="background-color: #e0e0ff; margin: 5px 5px 10px 10px; padding: 5px 10px 5px 15px; border: 1px solid #ccc; border-radius: 8px;">
                         <div style="margin: 5px 0px;">
-                            <label for="dnssec" class="label-wide">DNSSEC情報の要求:</label>
+                            <label for="dnssec" class="label-wide">DNSSEC情報の要求 (DO):</label>
                             <input type="checkbox" id="dnssec" name="dnssec" value="1" ${dnssecOk ? 'checked' : ''}>
-                            <label for="dnssec" style="font-weight:normal; width:auto;">DNSSEC OK (DO) フラグを立てる</label>
+                            <label for="dnssec" style="font-weight:normal; width:auto;">(DNSSEC OKフラグを立てる)</label>
                         </div>
                         <div style="margin: 5px 0px;">
                             <label for="udpsize" class="label-wide">UDPメッセージサイズ:</label>
@@ -838,12 +838,12 @@ const server = http.createServer((req, res) => {
                     <div>
                         <label for="tcp" class="label-wide">TCP送受信:</label>
                         <input type="checkbox" id="tcp" name="tcp" value="1" ${sendTcp ? 'checked' : ''}>
-                        <label for="tcp" style="font-weight:normal; width:auto;">(レスポンスに TCフラグが立っていたときは有効にする)</label>
+                        <label for="tcp" style="font-weight:normal; width:auto;">(レスポンスに TCフラグが立っていたときはチェック)</label>
                     </div>
                     <div>
                         <label for="ipv6" class="label-wide">IPv6送受信:</label>
                         <input type="checkbox" id="ipv6" name="ipv6" value="1" ${sendIpv6 ? 'checked' : ''}>
-                        <label for="ipv6" style="font-weight:normal; width:auto;">(UDP送受信の際に IPv6で接続したいときは有効にする)</label>
+                        <label for="ipv6" style="font-weight:normal; width:auto;">(UDP送受信の際に IPv6で接続したいときはチェック)</label>
                     </div>
                     <div style="margin-bottom: 0px;">
                         <input type="submit" value="DNSパケットを送信"> ${resetQMiniHtml}

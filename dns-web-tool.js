@@ -830,8 +830,7 @@ const server = http.createServer((req, res) => {
                         <div style="margin: 5px 0px;">
                             <label for="mqtype" class="label-wide">MQTYPE-Query:</label>
                             <input type="text" class="input-wide" id="mqtype" name="mqtype" value="${mQType}" placeholder="AAAA,TXT">
-                            <label for="mqtype" style="font-weight:normal; width:auto;">(<a href="https://datatracker.ietf.org/doc/html/rfc10029" target="_blank">RFC 10029</a>)
-                            <b><span style="color: red;">※未テスト</span></b></label>
+                            <label for="mqtype" style="font-weight:normal; width:auto;">(<a href="https://datatracker.ietf.org/doc/html/rfc10029" target="_blank">RFC 10029</a>)</label>
                         </div>
                     </div>
                     <div>

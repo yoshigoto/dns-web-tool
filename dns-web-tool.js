@@ -206,7 +206,7 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domai
     html += '<ul>';
     html += `<li>プロトコル: <code>${sendTcp ? 'TCP' : 'UDP'}</code> / 応答サイズ: <code>${bytesRead}</code>byte</li>`;
     html += `<li>応答したサーバー: <code>${dnsServer}</code></li>`;
-    html += `<li>クエリーID: <code>${queryId} (${response.id === queryId ? '一致' : '不一致'})</code></li>`;
+    html += `<li>クエリーID: <code>${queryId} (${response.id === queryId ? '一致' : '<span style="color: red;">不一致</span>'})</code></li>`;
 
     if (response.questions && response.questions.length > 0) {
         response.questions.forEach((question) => {

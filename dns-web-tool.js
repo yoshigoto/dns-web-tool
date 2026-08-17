@@ -1000,6 +1000,7 @@ const server = http.createServer((req, res) => {
             res.end(html + '</div></body></html>');
             return;
         }
+        // PTR-xクエリーのときは、qType を PTR に書き換え、qName を変換した後の値を domainName に反映させる
         domainName = qName;
         queryType = qType;
     }
@@ -1037,7 +1038,10 @@ const server = http.createServer((req, res) => {
                 qName = qName.slice(0, -1);	// 最後の '.' を削除
             }
             if ((qnameType === 'A' && qType === 'AAAA') !== true) {
-                qType = qnameType;	// RFC 9156 -> A/AAAA, RFC 7816 -> NS
+                // qnameType が A で qType が AAAA のときは、qType は AAAA のままにする (この if文には入らない)
+                // それ以外のときは、qnameType の値を qType に反映させる (例えば qnameType が NS のときは、qType がなんであっても NS にする)
+                // なお、元のクエリータイプは queryType 変数に保持されているので、qType を書き換えても問題ない
+                qType = qnameType;
             }
         }
     }

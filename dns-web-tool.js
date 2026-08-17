@@ -1078,8 +1078,9 @@ const server = http.createServer((req, res) => {
             edns0Option.options.push(option);
         }
         if (mQType !== '') {
+            const option = { code: 20 };
             if (mQType === 'EMPTY') {
-                const option = { code: 20, data: Buffer.alloc(0) };
+                option.data = Buffer.alloc(0);
             } else {
                 const mqtypeError = validateMQType(mQType, queryType, qClass);
                 if (mqtypeError !== '') {
@@ -1090,12 +1091,13 @@ const server = http.createServer((req, res) => {
                 }
                 const mQTypeArray = mQType.split(',');
                 const mQlength = mQTypeArray.length * 2;
-                const option = { code: 20, data: Buffer.alloc(mQlength) };
+                const mQdata = { data: Buffer.alloc(mQlength) };
                 let offset = 0;
                 for (const type of mQTypeArray) {
-                    option.data.writeUInt16BE(getDnsTypeCode(type), offset);
+                    mQdata.data.writeUInt16BE(getDnsTypeCode(type), offset);
                     offset += 2;
                 }
+                option.data = mQdata.data;
             }
             if (typeof edns0Option.options === "undefined") {
                 edns0Option.options = new Array();

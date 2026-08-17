@@ -681,26 +681,30 @@ const getDnsTypeCode = (type) => {
 };
 
 const validateMQType = (value, primaryType, qClass) => {
+    if (value === 'EMPTY') {
+        return '';
+    }
+
     const types = value.split(',').map(type => type.trim());
     if (types.length === 0 || types.some(type => type === '')) {
         return 'MQTYPE-Query の QTYPE リストが空です。';
     }
 
-    /*
-    if (qClass !== 'IN' || primaryType === 'ANY' || primaryType === 'VERSION') {
+//    if (qClass !== 'IN' || primaryType === 'ANY' || primaryType === 'VERSION') {
+    if (qClass !== 'IN' || primaryType === 'VERSION') {
         return 'MQTYPE-Query には IN クラスの data RRTYPE のクエリーが必要です。';
     }
 
     const typeCodes = types.map(getDnsTypeCode);
-    if (typeCodes.some(type => !Number.isInteger(type) || type < 1 || type > 65535 || type === 41 || (type >= 249 && type <= 255))) {
+//    if (typeCodes.some(type => !Number.isInteger(type) || type < 1 || type > 65535 || type === 41 || (type >= 249 && type <= 255))) {
+    if (typeCodes.some(type => !Number.isInteger(type) || type < 1 || type > 65535)) {
         return 'MQTYPE-Query に無効な QTYPE が含まれています。';
     }
 
-    const primaryTypeCode = getDnsTypeCode(primaryType);
+/*    const primaryTypeCode = getDnsTypeCode(primaryType);
     if (new Set(typeCodes).size !== typeCodes.length || typeCodes.includes(primaryTypeCode)) {
         return 'MQTYPE-Query に重複した QTYPE、または主 QTYPE と同じ QTYPE が含まれています。';
-    }
-    */
+    } */
     return '';
 };
 
@@ -1048,15 +1052,6 @@ const server = http.createServer((req, res) => {
             }
         }
     }
-    if (mQType !== '') {
-        const mqtypeError = validateMQType(mQType, queryType, qClass);
-        if (mqtypeError !== '') {
-            html += `<div class="result error"><p>エラー: ${escapeHtml(mqtypeError)}</p></div>`;
-            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-            res.end(html + '</div></body></html>');
-            return;
-        }
-    }
     const dnsFlags = buildDnsFlags(recursionDesired, checkingDisabled);
     let queryPacket = {
         type: 'query',
@@ -1083,13 +1078,24 @@ const server = http.createServer((req, res) => {
             edns0Option.options.push(option);
         }
         if (mQType !== '') {
-            const mQTypeArray = mQType.split(',');
-            const mQlength = mQTypeArray.length * 2;
-            const option = { code: 20, data: Buffer.alloc(mQlength) };
-            let offset = 0;
-            for (const type of mQTypeArray) {
-                option.data.writeUInt16BE(getDnsTypeCode(type), offset);
-                offset += 2;
+            if (mQType === 'EMPTY') {
+                const option = { code: 20, data: Buffer.alloc(0) };
+            } else {
+                const mqtypeError = validateMQType(mQType, queryType, qClass);
+                if (mqtypeError !== '') {
+                    html += `<div class="result error"><p>エラー: ${escapeHtml(mqtypeError)}</p></div>`;
+                    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+                    res.end(html + '</div></body></html>');
+                    return;
+                }
+                const mQTypeArray = mQType.split(',');
+                const mQlength = mQTypeArray.length * 2;
+                const option = { code: 20, data: Buffer.alloc(mQlength) };
+                let offset = 0;
+                for (const type of mQTypeArray) {
+                    option.data.writeUInt16BE(getDnsTypeCode(type), offset);
+                    offset += 2;
+                }
             }
             if (typeof edns0Option.options === "undefined") {
                 edns0Option.options = new Array();

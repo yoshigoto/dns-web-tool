@@ -416,6 +416,9 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domai
                         let nsidString = '';
                         let edeString = '';
                         let mQTypeString = '';
+                        let mQTypeResponseFound = false;
+                        let mQTypeResponseInvalid = false;
+                        let mQTypeResponseCount = 0;
                         if (optRecord.flags & dnsPacket.DNSSEC_OK) {
                             flagString = 'DO';
                         }
@@ -437,18 +440,38 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domai
                                 }
                             }
                             if (option.code === 21 && Buffer.isBuffer(option.data)) {
+                                mQTypeResponseFound = true;
+                                mQTypeResponseCount++;
                                 const buffer = option.data;
-                                if (buffer.length < 2) continue;
-                                
-                                const length  = buffer.readUInt16BE(0);	// Size (in octets) of OPTION-DATA
-                                for (let offset = 0; offset < length; offset += 2) {
-                                    const type = buffer.readUInt16BE(offset + 2);
+                                if (buffer.length % 2 !== 0) {
+                                    mQTypeResponseInvalid = true;
+                                    continue;
+                                }
+                                const primaryTypeCode = response.questions && response.questions.length > 0
+                                    ? getDnsTypeCode(response.questions[0].type)
+                                    : -1;
+                                const responseTypes = [];
+                                for (let offset = 0; offset < buffer.length; offset += 2) {
+                                    const type = buffer.readUInt16BE(offset);
+                                    if (responseTypes.includes(type) || type === primaryTypeCode || type === 41 || (type >= 249 && type <= 255)) {
+                                        mQTypeResponseInvalid = true;
+                                    }
+                                    responseTypes.push(type);
                                     mQTypeString += `${dnsTypes.toString(type)},`;
                                 }
                                 if (mQTypeString !== '') {
                                     mQTypeString = mQTypeString.slice(0, -1);
                                 }
                             }
+                        }
+                        if (mQTypeResponseCount > 1) {
+                            mQTypeResponseInvalid = true;
+                        }
+                        if (mQType !== '' && !mQTypeResponseFound) {
+                            optError = '<p style="color: orange; margin: 0;">MQTYPE-Response がありません。サーバーが RFC 10029 に対応していない可能性があります。</p>';
+                        }
+                        if (mQTypeResponseInvalid) {
+                            optError = '<p style="color: red; margin: 0;">MQTYPE-Response が RFC 10029 の形式に適合していません。</p>';
                         }
                         optPseudo = `<li><strong>[EDNS]</strong> <code>Version: 0, flags: ${flagString}, UDP payload size: ${optRecord.udpPayloadSize}</code></li>`;
                         if (nsidString !== '') {
@@ -457,8 +480,8 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domai
                         if (edeString !== '') {
                             optPseudo += `<li><strong>[EDE]</strong> <code>${edeString}</code></li>`;
                         }
-                        if (mQTypeString !== '') {
-                            optPseudo += `<li><strong>[MQTYPE-Response]</strong> <code>${mQTypeString}</code></li>`;
+                        if (mQTypeResponseFound) {
+                            optPseudo += `<li><strong>[MQTYPE-Response]</strong> <code>${mQTypeString || '(empty)'}</code></li>`;
                         }
                     } else {
                         optError = `<p style="color: red; margin: 0;">不明なオプション情報です。(name: ${additionals.name})</p>`;
@@ -647,6 +670,35 @@ const isInvalidUdpSize = (udpSize) => {
 const isInvalidQueryType = (queryType) => {
     const allowedTypes = ['A', 'AAAA', 'MX', 'NS', 'SOA', 'TXT', 'CNAME', 'DNAME', 'CAA', 'DNSKEY', 'DS', 'NSEC', 'NSEC3', 'RRSIG', 'SRV', 'HTTPS', 'SVCB', 'PTR', 'PTR-x', 'ANY', 'VERSION'];
     return !allowedTypes.includes(queryType);
+};
+
+const getDnsTypeCode = (type) => {
+    const normalizedType = type.trim().toUpperCase();
+    if (/^\d+$/.test(normalizedType)) {
+        return Number(normalizedType);
+    }
+    return dnsTypes.toType(replaceKnownToUnknownRrType(normalizedType));
+};
+
+const validateMQType = (value, primaryType, qClass) => {
+    const types = value.split(',').map(type => type.trim());
+    if (types.length === 0 || types.some(type => type === '')) {
+        return 'MQTYPE-Query の QTYPE リストが空です。';
+    }
+    if (qClass !== 'IN' || primaryType === 'ANY' || primaryType === 'VERSION') {
+        return 'MQTYPE-Query には IN クラスの data RRTYPE のクエリーが必要です。';
+    }
+
+    const typeCodes = types.map(getDnsTypeCode);
+    if (typeCodes.some(type => !Number.isInteger(type) || type < 1 || type > 65535 || type === 41 || (type >= 249 && type <= 255))) {
+        return 'MQTYPE-Query に無効な QTYPE が含まれています。';
+    }
+
+    const primaryTypeCode = getDnsTypeCode(primaryType);
+    if (new Set(typeCodes).size !== typeCodes.length || typeCodes.includes(primaryTypeCode)) {
+        return 'MQTYPE-Query に重複した QTYPE、または主 QTYPE と同じ QTYPE が含まれています。';
+    }
+    return '';
 };
 
 const buildDnsFlags = (recursionDesired, checkingDisabled) => {
@@ -989,6 +1041,15 @@ const server = http.createServer((req, res) => {
             }
         }
     }
+    if (mQType !== '') {
+        const mqtypeError = validateMQType(mQType, queryType, qClass);
+        if (mqtypeError !== '') {
+            html += `<div class="result error"><p>エラー: ${escapeHtml(mqtypeError)}</p></div>`;
+            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(html + '</div></body></html>');
+            return;
+        }
+    }
     const dnsFlags = buildDnsFlags(recursionDesired, checkingDisabled);
     let queryPacket = {
         type: 'query',
@@ -1017,11 +1078,10 @@ const server = http.createServer((req, res) => {
         if (mQType !== '') {
             const mQTypeArray = mQType.split(',');
             const mQlength = mQTypeArray.length * 2;
-            const option = { code: 20, length: Buffer.alloc(2), data: Buffer.alloc(mQlength) };
-            option.length = mQlength;
+            const option = { code: 20, data: Buffer.alloc(mQlength) };
             let offset = 0;
             for (const type of mQTypeArray) {
-                option.data.writeUInt16BE(dnsTypes.toType(type), offset);
+                option.data.writeUInt16BE(getDnsTypeCode(type), offset);
                 offset += 2;
             }
             if (typeof edns0Option.options === "undefined") {

@@ -54,25 +54,24 @@ function testBuildOption(mQType) {
 function testMQTypeResponseParsing() {
     console.log('=== MQTYPE レスポンス解析テスト ===\n');
     
-    // テストケース: MQTYPE オプション付きの応答をシミュレート
-    const testBuffer = Buffer.alloc(10);
-    const length = 6; // 3 型 × 2 バイト
-    testBuffer.writeUInt16BE(length, 0);
-    testBuffer.writeUInt16BE(1, 2);  // A
-    testBuffer.writeUInt16BE(28, 4); // AAAA
-    testBuffer.writeUInt16BE(15, 6); // MX
+    // dns-packet の option.data は OPTION-LENGTH を含まず、OPTION-DATA のみ
+    const testBuffer = Buffer.from([
+        0, 1,       // A
+        0, 28,      // AAAA
+        0, 15       // MX
+    ]);
     
     console.log('シミュレート応答バッファ: ' + testBuffer.toString('hex'));
     console.log('バッファ解析:\n');
     
     try {
-        const bufferLength = testBuffer.readUInt16BE(0);
+        const bufferLength = testBuffer.length;
         console.log(`  オプション長: ${bufferLength} bytes`);
         console.log(`  型情報:`);
         
         let mQTypeString = '';
         for (let offset = 0; offset < bufferLength; offset += 2) {
-            const type = testBuffer.readUInt16BE(offset + 2);
+            const type = testBuffer.readUInt16BE(offset);
             const typeName = dnsTypes.toString(type);
             console.log(`    - offset ${offset}: type=${type} (${typeName})`);
             mQTypeString += `${typeName},`;

@@ -685,6 +685,8 @@ const validateMQType = (value, primaryType, qClass) => {
     if (types.length === 0 || types.some(type => type === '')) {
         return 'MQTYPE-Query の QTYPE リストが空です。';
     }
+
+    /*
     if (qClass !== 'IN' || primaryType === 'ANY' || primaryType === 'VERSION') {
         return 'MQTYPE-Query には IN クラスの data RRTYPE のクエリーが必要です。';
     }
@@ -698,6 +700,7 @@ const validateMQType = (value, primaryType, qClass) => {
     if (new Set(typeCodes).size !== typeCodes.length || typeCodes.includes(primaryTypeCode)) {
         return 'MQTYPE-Query に重複した QTYPE、または主 QTYPE と同じ QTYPE が含まれています。';
     }
+    */
     return '';
 };
 

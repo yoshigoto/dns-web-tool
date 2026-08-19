@@ -224,27 +224,27 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domai
     // フラグの取得
     let flagString = '';
     if (response.flags & dnsPacket.RECURSION_DESIRED) {
-        flagString += 'RD ';
+        flagString += '<span title="Recursion Desired">RD</span> ';
     }
     if (response.flags & dnsPacket.RECURSION_AVAILABLE) {
-        flagString += 'RA ';
+        flagString += '<span title="Recursion Available">RA</span> ';
     }
     if (response.flags & dnsPacket.TRUNCATED_RESPONSE) {
-        flagString += 'TC ';
+        flagString += '<span title="Truncated Response">TC</span> ';
     }
     if (response.flags & dnsPacket.AUTHORITATIVE_ANSWER) {
-        flagString += 'AA ';
+        flagString += '<span title="Authoritative Answer">AA</span> ';
     }
     if (response.flags & dnsPacket.AUTHENTIC_DATA) {
-        flagString += 'AD ';
+        flagString += '<span title="Authentic Data">AD</span> ';
     }
     if (response.flags & dnsPacket.CHECKING_DISABLED) {
-        flagString += 'CD ';
+        flagString += '<span title="Checking Disabled">CD</span> ';
     }
     if (flagString !== '') {
         flagString = flagString.slice(0, -1);
     }
-    html += `<li>フラグ (flags): <code>${escapeHtml(flagString)}</code></li>`;
+    html += `<li>フラグ (flags): <code>${flagString}</code></li>`;
     if (response.flags & dnsPacket.TRUNCATED_RESPONSE) {
         const displayData = addLinkToDisplayData(origin, pathname, dnsServer, domainName, queryType, recursionDesired, checkingDisabled,
             true, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType, 'こちら');

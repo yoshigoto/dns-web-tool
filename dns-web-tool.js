@@ -839,7 +839,7 @@ const server = http.createServer((req, res) => {
                         </select>
                     </div>
                     <div>
-                        <label for="rd" class="label-wide">再帰の要求 (RD):</label>
+                        <label for="rd" class="label-wide">再帰検索の要求 (RD):</label>
                         <input type="checkbox" id="rd" name="rd" value="1" ${recursionDesired ? 'checked' : ''}>
                         <label for="rd" style="font-weight:normal; width:auto;">(クエリー先がフルサービスリゾルバーのときはチェック)</label>
                     </div>

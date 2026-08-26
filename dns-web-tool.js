@@ -212,7 +212,7 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domai
         response.questions.forEach((question) => {
             questionName = question.name;
             questionType = replaceUnknownRrTypeToKnown(question.type);
-            html += `<li>クエリー名: <code>${questionName}</code></li>`;
+            html += `<li>クエリー名: <code>${questionName}</code>${qnameMinimisation ? `<span style="font-size: 90%;"> (ラベル位置: <code>${qnamePosition}</code>)</span>` : ''}</li>`;
             html += `<li>クエリータイプ (type): <code>${questionType}</code></li>`;
         });
     }
@@ -853,7 +853,7 @@ const server = http.createServer((req, res) => {
                     <div style="margin-bottom: 5px;">
                         <label for="qmini" class="label-wide">QNAME minimisation:</label>
                         <input type="checkbox" id="qmini" name="qmini" value="1" ${qnameMinimisation ? 'checked' : ''}>
-                        <label for="qmini" style="font-weight:normal; width:auto;">(ラベル位置: ${qnamePosition})</label>
+                        <label for="qmini" style="font-weight:normal; width:auto;">(必要最小限のドメイン名で名前解決したいときはチェック)</label>
                         <input type="text" class="input-narrow" id="qposi" name="qposi" value="${qnamePosition}" hidden>
                     </div>
                     <div style="background-color: #f0f0ff; margin: 5px 5px 10px 10px; padding: 5px 10px 5px 15px; border: 1px solid #ccc; border-radius: 8px;">

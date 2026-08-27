@@ -1128,6 +1128,8 @@ const server = http.createServer((req, res) => {
         let resultHtml = '';
         let expectedLength = 0
         let receivedBuffer = null
+        let isResponded = false;
+        let finished = false;
         var tcpClient;
 
         // TCPソケットを作成して送信
@@ -1136,6 +1138,24 @@ const server = http.createServer((req, res) => {
         } else {
             tcpClient = new net.Socket({ family: 4 });
         }
+
+        // タイムアウト処理 (5秒間応答がない場合は通信を打ち切る)
+        const timeoutId = setTimeout(() => {
+            if (!isResponded) {
+                isResponded = true;
+                html += `<div class="result error"><p>タイムアウト: サーバー <strong>${dnsServer}</strong> から応答がありませんでした。</p>`;
+                if (qnameMinimisation) {
+                    const resetQMiniHtml = addLinkToDisplayData(parsedUrl.origin, parsedUrl.pathname, 'a.root-servers.net', domainName, queryType, recursionDesired, checkingDisabled,
+                        sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, '255', qnameType, 'こちら');
+                    html += `<p>※問い合わせたのは <strong>${qName}</strong> でした。${resetQMiniHtml} で QNAME minimisation の状態をリセットしてみてください。</p>`;
+                }
+                html += `</div>`;
+                finished = true;
+                res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+                res.end(html + '</div></body></html>');
+                tcpClient.destroy();
+            }
+        }, 5000);
 
         tcpClient.connect(53, dnsServer, () => {
             tcpClient.write(buf);
@@ -1157,6 +1177,8 @@ const server = http.createServer((req, res) => {
             }
 
             if (receivedBuffer.byteLength >= expectedLength) {
+                isResponded = true;
+                clearTimeout(timeoutId);
                 try {
                     const response = dnsPacket.streamDecode(receivedBuffer);
                     const bytesRead = dnsPacket.streamDecode.bytes;
@@ -1171,11 +1193,20 @@ const server = http.createServer((req, res) => {
         });
 
         tcpClient.on('error', (err) => {
-            html += `<div class="result error"><p>エラー: TCP通信に失敗しました: ${escapeHtml(err.message)}</p></div>`;
+            clearTimeout(timeoutId);
+            if (!isResponded) {
+                isResponded = true;
+                html += `<div class="result error"><p>エラー: TCP通信に失敗しました: ${escapeHtml(err.message)}</p></div>`;
+            }
             // このイベントの直後に、'close'イベントが呼び出される
         });
 
         tcpClient.on('close', (hadError) => {
+            clearTimeout(timeoutId);
+            if (finished) {
+                return;
+            }
+            finished = true;
             if (!hadError || resultHtml !== '') {
                 html += resultHtml;
             }

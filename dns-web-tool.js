@@ -900,7 +900,7 @@ const server = http.createServer((req, res) => {
                     <div>
                         <label for="ipv6" class="label-wide">IPv6送受信:</label>
                         <input type="checkbox" id="ipv6" name="ipv6" value="1" ${sendIpv6 ? 'checked' : ''}>
-                        <label for="ipv6" style="font-weight:normal; width:auto;">(UDP送受信の際に IPv6で接続したいときはチェック)</label>
+                        <label for="ipv6" style="font-weight:normal; width:auto;">(IPv6で通信したいときはチェック)</label>
                     </div>
                     <div style="margin-bottom: 0px;">
                         <input type="submit" value="DNSパケットを送信"> ${resetQMiniHtml}
@@ -1128,9 +1128,14 @@ const server = http.createServer((req, res) => {
         let resultHtml = '';
         let expectedLength = 0
         let receivedBuffer = null
+        var tcpClient;
 
         // TCPソケットを作成して送信
-        const tcpClient = new net.Socket();
+        if (isValidIPv6(dnsServer) || sendIpv6) {
+            tcpClient = new net.Socket({ family: 6 });
+        } else {
+            tcpClient = new net.Socket({ family: 4 });
+        }
 
         tcpClient.connect(53, dnsServer, () => {
             tcpClient.write(buf);

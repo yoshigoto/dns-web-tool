@@ -35,8 +35,8 @@ const EDE_ERRORS = {
 
 // HTMLエスケープ処理 (XSSインジェクション対策)
 const escapeHtml = (str) => {
-    if (typeof str !== 'string') return '';
-    return str.replace(/[&<>"']/g, (match) => {
+    if (str === null || typeof str === 'undefined') return '';
+    return String(str).replace(/[&<>"']/g, (match) => {
         const escapes = {
             '&': '&amp;',
             '<': '&lt;',
@@ -50,13 +50,32 @@ const escapeHtml = (str) => {
 
 const addLinkToDisplayData = (origin, pathname, dnsServer, domainName, queryType, recursionDesired, checkingDisabled,
     sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType, displayData, button=false, extraQuery='') => {
+    const query = new URLSearchParams({
+        server: dnsServer,
+        name: domainName,
+        type: queryType,
+        rd: recursionDesired ? '1' : '0',
+        cd: checkingDisabled ? '1' : '0',
+        tcp: sendTcp ? '1' : '0',
+        ipv6: sendIpv6 ? '1' : '0',
+        edns0: edns0Enable ? '1' : '0',
+        dnssec: dnssecOk ? '1' : '0',
+        udpsize: udpSize,
+        nsid: nsidEnable ? '1' : '0',
+        mqtype: mQType,
+        qmini: qnameMinimisation ? '1' : '0',
+        qposi: qnamePosition,
+        qtype: qnameType
+    });
+    if (extraQuery === '&reset=1') {
+        query.set('reset', '1');
+    }
+
     let html = '<a ';
     if (button) {
         html += 'class="a-button" ';
     }
-    html += `href=${origin}${pathname}?server=${escapeHtml(dnsServer)}&name=${escapeHtml(domainName)}&type=${queryType}&rd=${recursionDesired ? '1' : '0'}&cd=${checkingDisabled ? '1' : '0'}`;
-    html += `&tcp=${sendTcp ? '1' : '0'}&ipv6=${sendIpv6 ? '1' : '0'}&edns0=${edns0Enable ? '1' : '0'}&dnssec=${dnssecOk ? '1' : '0'}&udpsize=${escapeHtml(udpSize)}&nsid=${nsidEnable ? '1' : '0'}&mqtype=${escapeHtml(mQType)}`;
-    html += `&qmini=${qnameMinimisation ? '1' : '0'}&qposi=${qnamePosition}&qtype=${qnameType}${extraQuery}>${displayData}</a>`;
+    html += `href="${escapeHtml(`${pathname}?${query.toString()}`)}">${escapeHtml(displayData)}</a>`;
     return html;
 };
 
@@ -192,7 +211,7 @@ const decodeResourceRecord = (type, msg) => {
         }
         displayData = `priority: ${priority}, targetName: ${domainName}, params: [ ${paramString} ]`;
     }
-    return displayData;
+    return escapeHtml(displayData);
 }
 
 const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domainName, queryType, queryId, recursionDesired, checkingDisabled,
@@ -205,15 +224,15 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domai
     html += '<p><strong>基本情報:</strong></p>';
     html += '<ul>';
     html += `<li>プロトコル: <code>${sendTcp ? 'TCP' : 'UDP'}</code> / 応答サイズ: <code>${bytesRead}</code>byte</li>`;
-    html += `<li>応答したサーバー: <code>${dnsServer}</code></li>`;
+    html += `<li>応答したサーバー: <code>${escapeHtml(dnsServer)}</code></li>`;
     html += `<li>クエリーID: <code>${queryId} (${response.id === queryId ? '一致' : '<span style="color: red;">不一致</span>'})</code></li>`;
 
     if (response.questions && response.questions.length > 0) {
         response.questions.forEach((question) => {
             questionName = question.name;
             questionType = replaceUnknownRrTypeToKnown(question.type);
-            html += `<li>クエリー名: <code>${questionName}</code>${qnameMinimisation ? `<span style="font-size: 90%;"> (ラベル位置: <code>${qnamePosition}</code>)</span>` : ''}</li>`;
-            html += `<li>クエリータイプ (type): <code>${questionType}</code></li>`;
+            html += `<li>クエリー名: <code>${escapeHtml(questionName)}</code>${qnameMinimisation ? `<span style="font-size: 90%;"> (ラベル位置: <code>${escapeHtml(qnamePosition)}</code>)</span>` : ''}</li>`;
+            html += `<li>クエリータイプ (type): <code>${escapeHtml(questionType)}</code></li>`;
         });
     }
 
@@ -255,18 +274,18 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domai
     // Answerセクションについて応答コードに応じた条件分岐
     html += `<p><strong style="color: ${response.answers.length > 0 ? '#dd0000' : '#0000dd'};">ANSWER SECTION (${response.answers.length} 個) :</strong></p>`;
     if (rcode === 'SERVFAIL') {
-        html += `<p style="color: red; margin: 0;">SERVFAIL: 応答したサーバー <code>${dnsServer}</code> で一時的なエラーが発生したか、設定に問題があります。</p>`;
+        html += `<p style="color: red; margin: 0;">SERVFAIL: 応答したサーバー <code>${escapeHtml(dnsServer)}</code> で一時的なエラーが発生したか、設定に問題があります。</p>`;
         if (recursionDesired && !checkingDisabled) {
             const displayData = addLinkToDisplayData(origin, pathname, dnsServer, domainName, queryType, recursionDesired, true,
                 sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType, 'こちら');
             html += `<p style="color: orange; margin: 0;">※DNSSEC検証に失敗した可能性があります。${displayData} をクリックしてみてください。</p>`;
         }
     } else if (rcode === 'REFUSED') {
-        html += `<p style="color: red; margin: 0;">REFUSED: 応答したサーバー <code>${dnsServer}</code> のポリシーによりクエリーが拒否されました。</p>`;
+        html += `<p style="color: red; margin: 0;">REFUSED: 応答したサーバー <code>${escapeHtml(dnsServer)}</code> のポリシーによりクエリーが拒否されました。</p>`;
     } else if (rcode === 'FORMERR') {
-        html += `<p style="color: red; margin: 0;">FORMERR: 応答したサーバー <code>${dnsServer}</code> が送信したパケットの形式に問題があると判断しました。</p>`;
+        html += `<p style="color: red; margin: 0;">FORMERR: 応答したサーバー <code>${escapeHtml(dnsServer)}</code> が送信したパケットの形式に問題があると判断しました。</p>`;
     } else if (rcode === 'NXDOMAIN') {
-        html += `<p style="color: red; margin: 0;">NXDOMAIN: 問い合わせたドメイン名 <code>${questionName}</code> は存在しませんでした。</p>`;
+        html += `<p style="color: red; margin: 0;">NXDOMAIN: 問い合わせたドメイン名 <code>${escapeHtml(questionName)}</code> は存在しませんでした。</p>`;
         if (qnameMinimisation) {
             if (qnamePosition > 0) {
                 qnamePosition--;
@@ -276,7 +295,7 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domai
                     const soaRr = response.authorities.find(at => at.type === 'SOA');
                     if (soaRr) {
                         if (soaRr.name !== questionName) {
-                            html += `<p style="color: red; margin: 0;">※応答したサーバー <code>${dnsServer}</code> が RFC 8020 に対応していないようです。</p>`;
+                            html += `<p style="color: red; margin: 0;">※応答したサーバー <code>${escapeHtml(dnsServer)}</code> が RFC 8020 に対応していないようです。</p>`;
                             html += `<p style="color: orange; margin: 0;">※Empty Non-Terminal かもしれません。${displayData} をクリックしてみてください。</p>`;
                         } else {
                             html += `<p style="color: orange; margin: 0;">※QNAME minimisation が有効になっていますので ${displayData} をクリックしてみてください。</p>`;
@@ -289,7 +308,7 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domai
         // 正常応答の場合
         if (!response.answers || response.answers.length === 0) {
             // rcodeはNOERRORだが、該当レコードが空 (例: AAAAを引いたがAレコードしか持っていない場合など)
-            html += `<p style="color: green; margin: 0;">NOERROR: 指定されたタイプ <code>${questionType}</code> に対するレコード (回答) は見つかりませんでした。</p>`;
+            html += `<p style="color: green; margin: 0;">NOERROR: 指定されたタイプ <code>${escapeHtml(questionType)}</code> に対するレコード (回答) は見つかりませんでした。</p>`;
             if (qnameMinimisation) {
                 if (qnamePosition > 0) {
                     qnamePosition--;
@@ -475,16 +494,16 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domai
                         }
                         optPseudo = `<li><strong>[EDNS]</strong> <code>Version: 0, flags: ${flagString}, UDP payload size: ${optRecord.udpPayloadSize}</code></li>`;
                         if (nsidString !== '') {
-                            optPseudo += `<li><strong>[NSID]</strong> <code>${nsidString}</code></li>`;
+                            optPseudo += `<li><strong>[NSID]</strong> <code>${escapeHtml(nsidString)}</code></li>`;
                         }
                         if (edeString !== '') {
-                            optPseudo += `<li><strong>[EDE]</strong> <code>${edeString}</code></li>`;
+                            optPseudo += `<li><strong>[EDE]</strong> <code>${escapeHtml(edeString)}</code></li>`;
                         }
                         if (mQTypeResponseFound) {
                             optPseudo += `<li><strong>[MQTYPE-Response]</strong> <code>${mQTypeString || '(empty)'}</code></li>`;
                         }
                     } else {
-                        optError = `<p style="color: red; margin: 0;">不明なオプション情報です。(name: ${additionals.name})</p>`;
+                        optError = `<p style="color: red; margin: 0;">不明なオプション情報です。(name: ${escapeHtml(additionals.name)})</p>`;
                     }
                 } else if (typeof additionals.data === 'object') {
                     // オブジェクト構造を持つデータ用
@@ -801,7 +820,7 @@ const server = http.createServer((req, res) => {
         </head>
         <body>
         <div class="container">
-            <h2>🔍 <a href=${parsedUrl.origin}${parsedUrl.pathname}>DNSクエリー送信ツール</a></h2>
+            <h2>🔍 <a href="${escapeHtml(parsedUrl.pathname)}">DNSクエリー送信ツール</a></h2>
             <div id="search-panel" style="${searchToggleState}">
                 <form id="search" action="search" method="GET" onsubmit="const panel = this.closest('#search-panel'); if (panel) { panel.style.display='none'; } document.getElementById('search-toggle').textContent='入力欄再表示'; document.getElementById('search-toggle').dataset.state='show';">
                     <div>
@@ -970,7 +989,7 @@ const server = http.createServer((req, res) => {
 
     // 対象DNSサーバーのチェック
     if (isInvalidDnsServer(dnsServer)) {
-        html += `<div class="result error"><p>エラー: DNSサーバーを選択し直してください (${dnsServer} は不正です)。</p></div>`;
+        html += `<div class="result error"><p>エラー: DNSサーバーを選択し直してください (${escapeHtml(dnsServer)} は不正です)。</p></div>`;
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
         res.end(html + '</div></body></html>');
         return;
@@ -1143,11 +1162,11 @@ const server = http.createServer((req, res) => {
         const timeoutId = setTimeout(() => {
             if (!isResponded) {
                 isResponded = true;
-                html += `<div class="result error"><p>タイムアウト: サーバー <strong>${dnsServer}</strong> から応答がありませんでした。</p>`;
+                html += `<div class="result error"><p>タイムアウト: サーバー <strong>${escapeHtml(dnsServer)}</strong> から応答がありませんでした。</p>`;
                 if (qnameMinimisation) {
                     const resetQMiniHtml = addLinkToDisplayData(parsedUrl.origin, parsedUrl.pathname, 'a.root-servers.net', domainName, queryType, recursionDesired, checkingDisabled,
                         sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, '255', qnameType, 'こちら');
-                    html += `<p>※問い合わせたのは <strong>${qName}</strong> でした。${resetQMiniHtml} で QNAME minimisation の状態をリセットしてみてください。</p>`;
+                    html += `<p>※問い合わせたのは <strong>${escapeHtml(qName)}</strong> でした。${resetQMiniHtml} で QNAME minimisation の状態をリセットしてみてください。</p>`;
                 }
                 html += `</div>`;
                 finished = true;
@@ -1227,11 +1246,11 @@ const server = http.createServer((req, res) => {
         // タイムアウト処理 (5秒間応答がない場合は通信を打ち切る)
         const timeoutId = setTimeout(() => {
             if (!isResponded) {
-                html += `<div class="result error"><p>タイムアウト: サーバー <strong>${dnsServer}</strong> から応答がありませんでした。</p>`;
+                html += `<div class="result error"><p>タイムアウト: サーバー <strong>${escapeHtml(dnsServer)}</strong> から応答がありませんでした。</p>`;
                 if (qnameMinimisation) {
                     const resetQMiniHtml = addLinkToDisplayData(parsedUrl.origin, parsedUrl.pathname, 'a.root-servers.net', domainName, queryType, recursionDesired, checkingDisabled,
                         sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, '255', qnameType, 'こちら');
-                    html += `<p>※問い合わせたのは <strong>${qName}</strong> でした。${resetQMiniHtml} で QNAME minimisation の状態をリセットしてみてください。</p>`;
+                    html += `<p>※問い合わせたのは <strong>${escapeHtml(qName)}</strong> でした。${resetQMiniHtml} で QNAME minimisation の状態をリセットしてみてください。</p>`;
                 }
                 html += `</div>`;
                 res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });

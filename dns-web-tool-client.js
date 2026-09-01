@@ -51,7 +51,15 @@
     document.getElementById('qmini-reset').addEventListener('click', () => {
         form.elements.server.value = 'a.root-servers.net';
         form.elements.qposi.value = '255';
-        runQuery(new URLSearchParams(new FormData(form)), true, false);
+        const params = new URLSearchParams(new FormData(form));
+        if (!params.get('name')) {
+            results.replaceChildren();
+            description.hidden = false;
+            setPanelVisible(true);
+            history.pushState(null, '', applicationUrl.pathname);
+            return;
+        }
+        runQuery(params, true, false);
     });
 
     toggle.addEventListener('click', () => setPanelVisible(searchPanel.hidden));

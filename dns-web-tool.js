@@ -926,40 +926,12 @@ const server = http.createServer(async (req, res) => {
     const mQType = escapeHtml(rawMQtype.trim());
     let html = '';
 
-    // 初期アクセス時はフォームだけ表示して終了
     if (queryType === 'VERSION') {
         domainName = 'version.bind';
     }
     if (!domainName || !dnsServer) {
-        html += `<h3>説明</h3>`
-        html += `<div class="explanation">`
-        html += `<p>digコマンドや drillコマンドのように DNSクエリーを送信し、受信した内容を表示します。</p>`
-        html += `<p>■デフォルトでは<b><a href="https://jprs.jp/glossary/index.php?ID=0158" target="_blank">フルサービスリゾルバー</a></b>の動作 (処理) を<b>体験</b>できるようになっています。`
-        html +=   `<ol>`
-        html +=     `<li><b>「対象ドメイン名」を入力</b>して<b>「送信」</b>してください。</li>`
-        html +=       `<ul>`
-        html +=         `<li>AUTHORITYや ADDITIONALの情報に含まれるドメイン名 (NS) や IPアドレス (A, AAAA) をクリックすることで、<a href="https://jprs.jp/glossary/index.php?ID=0152" target="_blank">委任</a>を辿る (非再帰検索/反復検索を体験する) ことができます。</li>`
-        html +=       `</ul>`
-        html +=     `<li>「クエリー先DNSサーバー」は別の<a href="https://jprs.jp/glossary/index.php?ID=0145">権威サーバー</a>のドメイン名か IPアドレスを入力することもできます。</li>`
-        html +=     `<li>「Qminiリセット」をクリックすることで、各種パラメーターを保持しつつ、以下のパラメーターをデフォルト値に戻します。</li>`
-        html +=       '<ul>'
-        html +=         '<li>「クエリー先DNSサーバー」を「a.root-servers.net」にします。</li>'
-        html +=         '<li>QNAME minimisationにおけるドメイン名の位置情報 (どのラベルより後ろを問い合わせているか) をリセットします。</li>'
-        html +=       '</ul>'
-        html +=   `</ol>`
-        html += `</p>`
-        html += `<p>■<b><a href="https://jprs.jp/glossary/index.php?ID=0197" target="_blank">スタブリゾルバー</a></b>の動作 (処理) も<b>体験</b>することができます。`
-        html +=     `<ol><li>「クエリー先DNSサーバー」に<a href="https://jprs.jp/glossary/index.php?ID=0158" target="_blank">フルサービスリゾルバー</a>のドメイン名か IPアドレスを入力し、</li>`
-        html +=         `<li>「対象ドメイン名」を入力して、</li>`
-        html +=         `<li>「RDフラグ」にチェックを入れて、</li>`
-        html +=         `<li>「送信」してください。</li>`
-        html +=         `<ul><li><a href="https://jprs.jp/glossary/index.php?ID=0084" target="_blank">名前解決</a>は入力した<a href="https://jprs.jp/glossary/index.php?ID=0158" target="_blank">フルサービスリゾルバー</a>が代わりにやってくれますので、これ以上の操作は不要です。</li></ul>`
-        html +=     `</ol>`
-        html += `</p>`
-        html += `<p>※DNSSEC検証はしません。</p>`
-        html += `</div>`
-        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end(html);
+        res.writeHead(400, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end('<div class="result error"><p>エラー: 対象ドメイン名とDNSサーバーを入力してください。</p></div>');
         return;
     }
 

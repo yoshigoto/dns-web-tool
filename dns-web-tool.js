@@ -720,17 +720,20 @@ const validateMQType = (value, primaryType, qClass) => {
         return 'MQTYPE-Query の QTYPE リストが空です。';
     }
 
+// ↓ このツールは DNSテスト用なので制限を緩和してある
 //    if (qClass !== 'IN' || primaryType === 'ANY' || primaryType === 'VERSION') {
     if (qClass !== 'IN' || primaryType === 'VERSION') {
         return 'MQTYPE-Query には IN クラスの data RRTYPE のクエリーが必要です。';
     }
 
     const typeCodes = types.map(getDnsTypeCode);
+// ↓ このツールは DNSテスト用なので制限を緩和してある
 //    if (typeCodes.some(type => !Number.isInteger(type) || type < 1 || type > 65535 || type === 41 || (type >= 249 && type <= 255))) {
     if (typeCodes.some(type => !Number.isInteger(type) || type < 1 || type > 65535)) {
         return 'MQTYPE-Query に無効な QTYPE が含まれています。';
     }
 
+// ↓ このツールは DNSテスト用なので制限を緩和してある
 /*    const primaryTypeCode = getDnsTypeCode(primaryType);
     if (new Set(typeCodes).size !== typeCodes.length || typeCodes.includes(primaryTypeCode)) {
         return 'MQTYPE-Query に重複した QTYPE、または主 QTYPE と同じ QTYPE が含まれています。';

@@ -8,31 +8,40 @@ const dnsTypes = require('dns-packet/types');
 
 // RFC 8914 に定義されている INFO-CODE のマッピング表
 const EDE_ERRORS = {
-    0: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-0-o">Other Error</a>',
-    1: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-1-u">Unsupported DNSKEY Algorithm</a>',
-    2: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-2-u">Unsupported DS Digest Type</a>',
-    3: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-3-s">Stale Answer</a>',
-    4: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-4-f">Forged Answer</a>',
-    5: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-5-d">DNSSEC Indeterminate</a>',
-    6: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-6-d">DNSSEC Bogus</a>',
-    7: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-7-s">Signature Expired</a>',
-    8: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-8-s">Signature Not Yet Valid</a>',
-    9: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-9-d">DNSKEY Missing</a>',
-    10: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-10-">RRSIGs Missing</a>',
-    11: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-11-">No Zone Key Bit Set</a>',
-    12: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-12-">NSEC Missing</a>',
-    13: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-13-">Cached Error</a>',
-    14: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-14-">Not Ready</a>',
-    15: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-15-">Blocked</a>',
-    16: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-16-">Censored</a>',
-    17: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-17-">Filtered</a>',
-    18: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-18-">Prohibited</a>',
-    19: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-19-">Stale NXDOMAIN Answer</a>',
-    20: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-20-">Not Authoritative</a>',
-    21: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-21-">Not Supported</a>',
-    22: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-22-">No Reachable Authority</a>',
-    23: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-23-">Network Error</a>',
-    24: '<a href="https://www.rfc-editor.org/info/rfc8914/#name-extended-dns-error-code-24-">Invalid Data</a>'
+    0: 'Other Error',
+    1: 'Unsupported DNSKEY Algorithm',
+    2: 'Unsupported DS Digest Type',
+    3: 'Stale Answer',
+    4: 'Forged Answer',
+    5: 'DNSSEC Indeterminate',
+    6: 'DNSSEC Bogus',
+    7: 'Signature Expired',
+    8: 'Signature Not Yet Valid',
+    9: 'DNSKEY Missing',
+    10: 'RRSIGs Missing',
+    11: 'No Zone Key Bit Set',
+    12: 'NSEC Missing',
+    13: 'Cached Error',
+    14: 'Not Ready',
+    15: 'Blocked',
+    16: 'Censored',
+    17: 'Filtered',
+    18: 'Prohibited',
+    19: 'Stale NXDOMAIN Answer',
+    20: 'Not Authoritative',
+    21: 'Not Supported',
+    22: 'No Reachable Authority',
+    23: 'Network Error',
+    24: 'Invalid Data'
+};
+
+const getEdeErrorName = (infoCode) => {
+    const errorName = EDE_ERRORS[infoCode] || 'Unknown Error';
+    if (!Object.hasOwn(EDE_ERRORS, infoCode)) {
+        return escapeHtml(errorName);
+    }
+    const errorUrl = 'https://www.rfc-editor.org/rfc/rfc8914.html#section-4.1';
+    return `<a href="${errorUrl}" target="_blank" rel="noopener noreferrer">${escapeHtml(errorName)}</a>`;
 };
 
 // HTMLエスケープ処理 (XSSインジェクション対策)
@@ -452,12 +461,12 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domai
                                 if (buffer.length < 2) continue;
 
                                 const infoCode = buffer.readUInt16BE(0);
-                                const errorName = EDE_ERRORS[infoCode] || 'Unknown Error';
-                                edeString = `${infoCode} (${errorName})`;
+                                const errorName = getEdeErrorName(infoCode);
+                                edeString = `${escapeHtml(infoCode)} (${errorName})`;
 
                                 if (buffer.length > 2) {
                                     const extraText = buffer.toString('utf8', 2);
-                                    edeString += `: (${extraText})`;
+                                    edeString += `: (${escapeHtml(extraText)})`;
                                 }
                             }
                             if (option.code === 21 && Buffer.isBuffer(option.data)) {

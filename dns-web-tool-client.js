@@ -27,10 +27,10 @@
         toggle.textContent = visible ? '入力欄非表示' : '入力欄再表示';
     };
 
-    const runQuery = async (params, updateHistory = true) => {
+    const runQuery = async (params, updateHistory = true, hidePanel = true) => {
         results.innerHTML = '<p>DNS クエリーを送信しています...</p>';
         description.hidden = true;
-        setPanelVisible(false);
+        if (hidePanel) setPanelVisible(false);
         const query = params.toString();
         if (updateHistory) history.pushState(null, '', query ? `?${query}` : applicationUrl.pathname);
         try {
@@ -51,7 +51,7 @@
     document.getElementById('qmini-reset').addEventListener('click', () => {
         form.elements.server.value = 'a.root-servers.net';
         form.elements.qposi.value = '255';
-        runQuery(new URLSearchParams(new FormData(form)));
+        runQuery(new URLSearchParams(new FormData(form)), true, false);
     });
 
     toggle.addEventListener('click', () => setPanelVisible(searchPanel.hidden));

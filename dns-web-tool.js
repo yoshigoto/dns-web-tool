@@ -734,9 +734,123 @@ const buildDnsFlags = (recursionDesired, checkingDisabled) => {
            (checkingDisabled ? dnsPacket.CHECKING_DISABLED : 0);
 };
 
+const ROOT_SERVERS = [
+    '198.41.0.4', '199.9.14.201', '192.33.4.12', '199.7.91.13',
+    '192.203.230.10', '192.5.5.241', '192.112.36.4', '198.97.190.53',
+    '192.36.148.17', '192.58.128.30', '193.0.14.129', '199.7.83.42',
+    '202.12.27.33'
+];
+
+const normalizeDnsName = (name) => name.replace(/\.$/, '').toLowerCase();
+
+const queryAuthoritativeServer = (serverAddress, name, type) => new Promise((resolve, reject) => {
+    const client = dgram.createSocket(net.isIP(serverAddress) === 6 ? 'udp6' : 'udp4');
+    const packet = dnsPacket.encode({
+        type: 'query',
+        id: Math.floor(Math.random() * 65535),
+        // 権威サーバーから DNSSEC 検証を行わない応答を受け取る。
+        flags: dnsPacket.CHECKING_DISABLED,
+        questions: [{ name, type, class: 'IN' }],
+        additionals: [{ type: 'OPT', name: '.', udpPayloadSize: 1232, flags: 0 }]
+    });
+    const timeoutId = setTimeout(() => {
+        client.close();
+        reject(new Error(`${serverAddress} から応答がありませんでした。`));
+    }, 2000);
+
+    client.once('message', (message) => {
+        clearTimeout(timeoutId);
+        client.close();
+        try {
+            resolve(dnsPacket.decode(message));
+        } catch (error) {
+            reject(error);
+        }
+    });
+    client.once('error', (error) => {
+        clearTimeout(timeoutId);
+        client.close();
+        reject(error);
+    });
+    client.send(packet, 53, serverAddress, (error) => {
+        if (error) {
+            clearTimeout(timeoutId);
+            client.close();
+            reject(error);
+        }
+    });
+});
+
+const resolveDnsServerAddress = async (dnsServer, preferIpv6, resolutionDepth = 0) => {
+    if (net.isIP(dnsServer)) return dnsServer;
+    if (resolutionDepth >= 5) {
+        throw new Error('DNSサーバー名の解決で入れ子の委任が上限を超えました。');
+    }
+
+    const queryType = preferIpv6 ? 'AAAA' : 'A';
+    let queryName = normalizeDnsName(dnsServer);
+    let nameServers = ROOT_SERVERS;
+
+    for (let depth = 0; depth < 20; depth++) {
+        let response;
+        for (const nameServer of nameServers) {
+            try {
+                response = await queryAuthoritativeServer(nameServer, queryName, queryType);
+                break;
+            } catch (error) {
+                // 同じ委任先の次の権威サーバーを試す。
+            }
+        }
+        if (!response) {
+            throw new Error('権威サーバーからDNSサーバー名を解決できませんでした。');
+        }
+
+        const answer = response.answers.find(record => record.type === queryType && normalizeDnsName(record.name) === queryName);
+        if (answer && net.isIP(answer.data) && !isInvalidDnsServer(answer.data)) {
+            return answer.data;
+        }
+        const cname = response.answers.find(record => record.type === 'CNAME' && record.name.toLowerCase() === queryName);
+        if (cname) {
+            queryName = normalizeDnsName(cname.data);
+            nameServers = ROOT_SERVERS;
+            continue;
+        }
+
+        const delegation = response.authorities.find(record => record.type === 'NS');
+        if (!delegation) {
+            throw new Error(`DNSサーバー名 ${dnsServer} の ${queryType} レコードが見つかりませんでした。`);
+        }
+        const delegatedZone = normalizeDnsName(delegation.name);
+        const delegatedNames = response.authorities
+            .filter(record => record.type === 'NS' && normalizeDnsName(record.name) === delegatedZone)
+            .map(record => normalizeDnsName(record.data));
+        const glueAddresses = response.additionals
+            .filter(record => record.type === queryType && delegatedNames.includes(normalizeDnsName(record.name)) && net.isIP(record.data))
+            .map(record => record.data)
+            .filter(address => !isInvalidDnsServer(address));
+        const directGlueAddress = response.additionals
+            .find(record => record.type === queryType && normalizeDnsName(record.name) === queryName && net.isIP(record.data));
+        if (directGlueAddress && !isInvalidDnsServer(directGlueAddress.data)) {
+            return directGlueAddress.data;
+        }
+        if (glueAddresses.length === 0) {
+            for (const delegatedName of delegatedNames) {
+                try {
+                    return await resolveDnsServerAddress(delegatedName, preferIpv6, resolutionDepth + 1);
+                } catch (error) {
+                    // 他の委任先NSの名前解決を試す。
+                }
+            }
+            throw new Error(`委任先 ${delegatedZone} のIPアドレスを取得できませんでした。`);
+        }
+        nameServers = glueAddresses;
+    }
+    throw new Error('DNSサーバー名の解決で委任を辿る回数が上限を超えました。');
+};
+
 const APPLICATION_PATH = process.env.APPLICATION_PATH || '/dnsquerytool';
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
     if (req.url === '/favicon.ico') {
         res.writeHead(204);
         res.end();
@@ -865,6 +979,16 @@ const server = http.createServer((req, res) => {
     // UDP Payload Sizeのチェック
     if (isInvalidUdpSize(udpSize)) {
         html += `<div class="result error"><p>エラー: UDPメッセージサイズを入力し直してください (${udpSize} は不正です)。</p></div>`;
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(html);
+        return;
+    }
+
+    let dnsServerAddress;
+    try {
+        dnsServerAddress = await resolveDnsServerAddress(dnsServer, sendIpv6);
+    } catch (error) {
+        html += `<div class="result error"><p>エラー: DNSサーバー名を解決できませんでした: ${escapeHtml(error.message)}</p></div>`;
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
         res.end(html);
         return;
@@ -1019,7 +1143,7 @@ const server = http.createServer((req, res) => {
         var tcpClient;
 
         // TCPソケットを作成して送信
-        if (isValidIPv6(dnsServer) || sendIpv6) {
+        if (isValidIPv6(dnsServerAddress)) {
             tcpClient = new net.Socket({ family: 6 });
         } else {
             tcpClient = new net.Socket({ family: 4 });
@@ -1043,7 +1167,7 @@ const server = http.createServer((req, res) => {
             }
         }, 5000);
 
-        tcpClient.connect(53, dnsServer, () => {
+        tcpClient.connect(53, dnsServerAddress, () => {
             tcpClient.write(buf);
         });
 
@@ -1104,7 +1228,7 @@ const server = http.createServer((req, res) => {
         var udpClient;
 
         // UDPソケットを作成して送信
-        if (isValidIPv6(dnsServer) || sendIpv6) {
+        if (isValidIPv6(dnsServerAddress)) {
             udpClient = dgram.createSocket('udp6');
         } else {
             udpClient = dgram.createSocket('udp4');
@@ -1154,7 +1278,7 @@ const server = http.createServer((req, res) => {
         });
 
         // 指定されたサーバーIPの53番ポートへ送信
-        udpClient.send(buf, 0, buf.length, 53, dnsServer, (err) => {
+        udpClient.send(buf, 0, buf.length, 53, dnsServerAddress, (err) => {
             if (err) {
                 isResponded = true;
                 clearTimeout(timeoutId);

@@ -454,7 +454,7 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domai
                         }
                         for (const option of optRecord.options) {
                             if (option.code === 3 && option.data.length > 0) {
-                                nsidString = `${option.data.toString('utf-8')} (${option.data.toString('hex')})`;
+                                nsidString = escapeHtml(`${option.data.toString('utf-8')} (${option.data.toString('hex')})`);
                             }
                             if (option.code === 15 && Buffer.isBuffer(option.data)) {
                                 const buffer = option.data;
@@ -505,7 +505,7 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domai
                         }
                         optPseudo = `<li><strong>[EDNS]</strong> <code>Version: 0, flags: ${flagString}, UDP payload size: ${optRecord.udpPayloadSize}</code></li>`;
                         if (nsidString !== '') {
-                            optPseudo += `<li><strong>[NSID]</strong> <code>${escapeHtml(nsidString)}</code></li>`;
+                            optPseudo += `<li><strong>[NSID]</strong> <code>${nsidString}</code></li>`;
                         }
                         if (edeString !== '') {
                             optPseudo += `<li><strong>[EDE]</strong> <code>${edeString}</code></li>`;

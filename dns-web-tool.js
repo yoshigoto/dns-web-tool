@@ -77,7 +77,7 @@ const addLinkToDisplayData = (origin, pathname, dnsServer, domainName, queryType
     if (button) {
         html += 'class="a-button" ';
     }
-    html += `href="${escapeHtml(`${pathname}?${query.toString()}`)}">${escapeHtml(displayData)}</a>`;
+    html += `data-dns-query-link href="${escapeHtml(`.${pathname}?${query.toString()}`)}">${escapeHtml(displayData)}</a>`;
     return html;
 };
 

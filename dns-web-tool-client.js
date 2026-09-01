@@ -4,6 +4,8 @@
     const description = document.getElementById('description');
     const searchPanel = document.getElementById('search-panel');
     const toggle = document.getElementById('search-toggle');
+    const applicationUrl = new URL('./', document.baseURI);
+    const apiUrl = new URL('api/query', applicationUrl);
 
     const restoreForm = (params) => {
         for (const [name, value] of params) {
@@ -30,9 +32,9 @@
         description.hidden = true;
         setPanelVisible(false);
         const query = params.toString();
-        if (updateHistory) history.pushState(null, '', query ? `/?${query}` : '/');
+        if (updateHistory) history.pushState(null, '', query ? `?${query}` : applicationUrl.pathname);
         try {
-            const response = await fetch(`/api/query?${query}`);
+            const response = await fetch(`${apiUrl}?${query}`);
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             results.innerHTML = await response.text();
         } catch (error) {
@@ -55,7 +57,7 @@
     toggle.addEventListener('click', () => setPanelVisible(searchPanel.hidden));
 
     results.addEventListener('click', (event) => {
-        const link = event.target.closest('a[href^="/api/query?"]');
+        const link = event.target.closest('a[data-dns-query-link]');
         if (!link) return;
         event.preventDefault();
         const params = new URL(link.href).searchParams;

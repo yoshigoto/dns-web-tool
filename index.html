@@ -30,7 +30,7 @@
 </head>
 <body>
     <main class="container">
-        <h2><a href="/">DNSクエリー送信ツール</a></h2>
+        <h2><a href="./">DNSクエリー送信ツール</a></h2>
         <section id="search-panel">
             <form id="search">
                 <div><label for="server" class="label-wide">クエリー先DNSサーバー:</label><input type="text" class="input-wide" id="server" name="server" value="a.root-servers.net" placeholder="a.root-servers.net"></div>
@@ -58,6 +58,6 @@
         <section id="results" aria-live="polite"></section>
         <section id="description" class="explanation"><h3>説明</h3><p>digコマンドや drillコマンドのように DNSクエリーを送信し、受信した内容を表示します。</p><p>デフォルトでは<a href="https://jprs.jp/glossary/index.php?ID=0158" target="_blank">フルサービスリゾルバー</a>の動作を体験できます。対象ドメイン名を入力して送信し、AUTHORITY や ADDITIONAL の情報に含まれるドメイン名 (NS) や IPアドレス (A, AAAA) をクリックすると、<a href="https://jprs.jp/glossary/index.php?ID=0152" target="_blank">委任</a>を辿れます。</p><p>クエリー先DNSサーバーには別の<a href="https://jprs.jp/glossary/index.php?ID=0145" target="_blank">権威サーバー</a>のドメイン名か IPアドレスも入力できます。Qminiリセットはクエリー先を a.root-servers.net に戻し、QNAME minimisation の位置情報を初期化します。</p><p><a href="https://jprs.jp/glossary/index.php?ID=0197" target="_blank">スタブリゾルバー</a>の動作も、フルサービスリゾルバーを指定して RD フラグを有効にすると体験できます。DNSSEC 検証は行いません。</p></section>
     </main>
-    <script src="/dns-web-tool-client.js" defer></script>
+    <script src="dns-web-tool-client.js" defer></script>
 </body>
 </html>

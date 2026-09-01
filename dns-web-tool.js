@@ -734,6 +734,8 @@ const buildDnsFlags = (recursionDesired, checkingDisabled) => {
            (checkingDisabled ? dnsPacket.CHECKING_DISABLED : 0);
 };
 
+const APPLICATION_PATH = process.env.APPLICATION_PATH || '/dnsquerytool';
+
 const server = http.createServer((req, res) => {
     if (req.url === '/favicon.ico') {
         res.writeHead(204);
@@ -743,6 +745,9 @@ const server = http.createServer((req, res) => {
 
     // WHATWG URL API を使用、req.url は相対パスのため第2引数にダミーのベースURLを設定
     const parsedUrl = new URL(req.url, `http://${req.headers.host}/`);
+    if (parsedUrl.pathname === APPLICATION_PATH || parsedUrl.pathname.startsWith(`${APPLICATION_PATH}/`)) {
+        parsedUrl.pathname = parsedUrl.pathname.slice(APPLICATION_PATH.length) || '/';
+    }
     const staticFiles = {
         '/': { file: 'index.html', contentType: 'text/html; charset=utf-8' },
         '/index.html': { file: 'index.html', contentType: 'text/html; charset=utf-8' },

@@ -508,7 +508,7 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domai
                             optPseudo += `<li><strong>[NSID]</strong> <code>${escapeHtml(nsidString)}</code></li>`;
                         }
                         if (edeString !== '') {
-                            optPseudo += `<li><strong>[EDE]</strong> <code>${escapeHtml(edeString)}</code></li>`;
+                            optPseudo += `<li><strong>[EDE]</strong> <code>${edeString}</code></li>`;
                         }
                         if (mQTypeResponseFound) {
                             optPseudo += `<li><strong>[MQTYPE-Response]</strong> <code>${mQTypeString || '(empty)'}</code></li>`;

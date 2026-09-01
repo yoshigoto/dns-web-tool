@@ -7,7 +7,7 @@
     <style>
         body { font-family: sans-serif; margin: 0; padding: 20px; background: #f4f6f9; color: #333; }
         .container { max-width: 800px; margin: 0 auto; padding: 25px; background: white; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        div { margin-bottom: 10px; }
+        div { margin: 10px; }
         label { display: inline-block; font-weight: bold; }
         .label-wide { width: 220px; }
         .input-wide { width: 250px; padding: 5px; box-sizing: border-box; }
@@ -21,6 +21,7 @@
         #search-toggle:hover { background: #18733f; }
         #search-panel { border: 1px solid #d0d7de; border-radius: 12px; padding: 14px 16px; background: #fafbfc; box-shadow: inset 0 1px 0 rgba(255,255,255,0.7); }
         .option-group { background-color: #f0f0ff; margin: 5px 5px 10px 10px; padding: 5px 10px 5px 15px; border: 1px solid #ccc; border-radius: 8px; }
+        .option-div { margin: 5px 0; }
         .result { padding: 15px; border-radius: 8px; background: #f0f0f0; border-left: 6px solid #007BFF; white-space: pre; overflow-x: auto; }
         .error { border-color: red; background: #fff0f0; }
         .explanation { font-size: 90%; }
@@ -39,15 +40,19 @@
                     <option value="A">A (IPv4 address)</option><option value="AAAA">AAAA (IPv6 address)</option><option value="MX">MX (Mail Exchange)</option><option value="NS">NS (Name Server)</option><option value="SOA">SOA (Start Of Authority)</option><option value="TXT">TXT (Text)</option><option value="CNAME">CNAME (Canonical Name)</option><option value="DNAME">DNAME (Delegation Name)</option><option value="CAA">CAA (Certification Authority Authorization)</option><option value="DNSKEY">DNSKEY</option><option value="DS">DS (Delegation Signer)</option><option value="NSEC">NSEC (NextSECure record)</option><option value="NSEC3">NSEC3</option><option value="RRSIG">RRSIG (Resource Record Signature)</option><option value="SRV">SRV (Service)</option><option value="HTTPS">HTTPS</option><option value="SVCB">SVCB (Service Binding)</option><option value="PTR">PTR (Pointer - 4.2.0.192.in-addr.arpa)</option><option value="PTR-x">PTR-x (Pointer - 192.0.2.4)</option><option value="ANY">ANY</option><option value="VERSION">VERSION (CHAOS/TXT/version.bind)</option>
                 </select></div>
                 <div><label for="rd" class="label-wide">再帰検索の要求 (RD):</label><input type="checkbox" id="rd" name="rd" value="1"><label for="rd" style="font-weight:normal; width:auto;">(クエリー先がフルサービスリゾルバーのときはチェック)</label></div>
-                <div class="option-group"><div><label for="cd" class="label-wide">チェックの無効化 (CD):</label><input type="checkbox" id="cd" name="cd" value="1"><label for="cd" style="font-weight:normal; width:auto;">(DNSSEC検証を無効化したいときはチェック)</label></div></div>
+                <div class="option-group">
+                    <div class="option-div"><label for="cd" class="label-wide">チェックの無効化 (CD):</label><input type="checkbox" id="cd" name="cd" value="1"><label for="cd" style="font-weight:normal; width:auto;">(DNSSEC検証を無効化したいときはチェック)</label></div>
+                </div>
                 <div><label for="qmini" class="label-wide">QNAME minimisation:</label><input type="checkbox" id="qmini" name="qmini" value="1"><label for="qmini" style="font-weight:normal; width:auto;">(必要最小限のドメイン名で名前解決したいときはチェック)</label><input type="hidden" id="qposi" name="qposi" value="255"></div>
-                <div class="option-group"><div><span class="label-wide">クエリータイプ:</span><label style="font-weight:normal; width:auto;"><input type="radio" name="qtype" value="A" checked>A/AAAA (<a href="https://datatracker.ietf.org/doc/html/rfc9156" target="_blank">RFC 9156</a>)</label><label style="font-weight:normal; width:auto;"><input type="radio" name="qtype" value="NS">NS (<a href="https://datatracker.ietf.org/doc/html/rfc7816" target="_blank">RFC 7816</a>)</label></div></div>
+                <div class="option-group">
+                    <div class="option-div"><label class="label-wide">クエリータイプ:</label><input type="radio" name="qtype" value="A" checked>A/AAAA (<a href="https://datatracker.ietf.org/doc/html/rfc9156" target="_blank">RFC 9156</a>)</label><label style="font-weight:normal; width:auto;"><input type="radio" name="qtype" value="NS">NS (<a href="https://datatracker.ietf.org/doc/html/rfc7816" target="_blank">RFC 7816</a>)</label></div>
+                </div>
                 <div><label for="edns0" class="label-wide">EDNS0の付与:</label><input type="checkbox" id="edns0" name="edns0" value="1"><label for="edns0" style="font-weight:normal; width:auto;">(<a href="https://datatracker.ietf.org/doc/html/rfc6891" target="_blank">RFC 6891</a>)</label></div>
                 <div class="option-group">
-                    <div><label for="dnssec" class="label-wide">DNSSEC情報の要求 (DO):</label><input type="checkbox" id="dnssec" name="dnssec" value="1"><label for="dnssec" style="font-weight:normal; width:auto;">(<a href="https://datatracker.ietf.org/doc/html/rfc3225" target="_blank">RFC 3225</a>)</label></div>
-                    <div><label for="udpsize" class="label-wide">UDPメッセージサイズ:</label><input type="text" class="input-narrow" id="udpsize" name="udpsize" value="1232" required><label for="udpsize" style="font-weight:normal; width:auto;">byte</label></div>
-                    <div><label for="nsid" class="label-wide">NSIDの要求:</label><input type="checkbox" id="nsid" name="nsid" value="1"><label for="nsid" style="font-weight:normal; width:auto;">(<a href="https://datatracker.ietf.org/doc/html/rfc5001" target="_blank">RFC 5001</a>)</label></div>
-                    <div><label for="mqtype" class="label-wide">MQTYPE-Query:</label><input type="text" class="input-wide" id="mqtype" name="mqtype" placeholder="AAAA,TXT"><label for="mqtype" style="font-weight:normal; width:auto;">(<a href="https://datatracker.ietf.org/doc/html/rfc10029" target="_blank">RFC 10029</a>)</label></div>
+                    <div class="option-div"><label for="dnssec" class="label-wide">DNSSEC情報の要求 (DO):</label><input type="checkbox" id="dnssec" name="dnssec" value="1"><label for="dnssec" style="font-weight:normal; width:auto;">(<a href="https://datatracker.ietf.org/doc/html/rfc3225" target="_blank">RFC 3225</a>)</label></div>
+                    <div class="option-div"><label for="udpsize" class="label-wide">UDPメッセージサイズ:</label><input type="text" class="input-narrow" id="udpsize" name="udpsize" value="1232" required><label for="udpsize" style="font-weight:normal; width:auto;">byte</label></div>
+                    <div class="option-div"><label for="nsid" class="label-wide">NSIDの要求:</label><input type="checkbox" id="nsid" name="nsid" value="1"><label for="nsid" style="font-weight:normal; width:auto;">(<a href="https://datatracker.ietf.org/doc/html/rfc5001" target="_blank">RFC 5001</a>)</label></div>
+                    <div class="option-div"><label for="mqtype" class="label-wide">MQTYPE-Query:</label><input type="text" class="input-wide" id="mqtype" name="mqtype" placeholder="AAAA,TXT"><label for="mqtype" style="font-weight:normal; width:auto;">(<a href="https://datatracker.ietf.org/doc/html/rfc10029" target="_blank">RFC 10029</a>)</label></div>
                 </div>
                 <div><label for="tcp" class="label-wide">TCP送受信:</label><input type="checkbox" id="tcp" name="tcp" value="1"><label for="tcp" style="font-weight:normal; width:auto;">(レスポンスに TCフラグが立っていたときはチェック)</label></div>
                 <div><label for="ipv6" class="label-wide">IPv6送受信:</label><input type="checkbox" id="ipv6" name="ipv6" value="1"><label for="ipv6" style="font-weight:normal; width:auto;">(IPv6で通信したいときはチェック)</label></div>

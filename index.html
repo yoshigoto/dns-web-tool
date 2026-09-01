@@ -35,15 +35,22 @@
         <h2><a href="./">DNSクエリー送信ツール</a></h2>
         <section id="search-panel">
             <form id="search">
-                <div><label for="server" class="label-wide">クエリー先DNSサーバー:</label><input type="text" class="input-wide" id="server" name="server" value="a.root-servers.net" placeholder="a.root-servers.net"></div>
-                <div><label for="name" class="label-wide">対象ドメイン名 (name):</label><input type="text" class="input-wide" id="name" name="name" placeholder="example.com" autofocus required></div>
-                <div><label for="type" class="label-wide">クエリータイプ (type):</label><select id="type" name="type">
-                    <option value="A">A (IPv4 address)</option><option value="AAAA">AAAA (IPv6 address)</option><option value="MX">MX (Mail Exchange)</option><option value="NS">NS (Name Server)</option><option value="SOA">SOA (Start Of Authority)</option><option value="TXT">TXT (Text)</option><option value="CNAME">CNAME (Canonical Name)</option><option value="DNAME">DNAME (Delegation Name)</option><option value="CAA">CAA (Certification Authority Authorization)</option><option value="DNSKEY">DNSKEY</option><option value="DS">DS (Delegation Signer)</option><option value="NSEC">NSEC (NextSECure record)</option><option value="NSEC3">NSEC3</option><option value="RRSIG">RRSIG (Resource Record Signature)</option><option value="SRV">SRV (Service)</option><option value="HTTPS">HTTPS</option><option value="SVCB">SVCB (Service Binding)</option><option value="PTR">PTR (Pointer - 4.2.0.192.in-addr.arpa)</option><option value="PTR-x">PTR-x (Pointer - 192.0.2.4)</option><option value="ANY">ANY</option><option value="VERSION">VERSION (CHAOS/TXT/version.bind)</option>
-                </select></div>
+                <div><label for="server" class="label-wide">クエリー先DNSサーバー:</label>
+                    <input type="text" class="input-wide" id="server" name="server" value="a.root-servers.net" placeholder="a.root-servers.net">
+                </div>
+                <div><label for="name" class="label-wide">対象ドメイン名 (name):</label>
+                    <input type="text" class="input-wide" id="name" name="name" placeholder="example.com" autofocus required>
+                </div>
+                <div><label for="type" class="label-wide">クエリータイプ (type):</label>
+                    <select id="type" name="type">
+                        <option value="A">A (IPv4 address)</option><option value="AAAA">AAAA (IPv6 address)</option><option value="MX">MX (Mail Exchange)</option><option value="NS">NS (Name Server)</option><option value="SOA">SOA (Start Of Authority)</option><option value="TXT">TXT (Text)</option><option value="CNAME">CNAME (Canonical Name)</option><option value="DNAME">DNAME (Delegation Name)</option><option value="CAA">CAA (Certification Authority Authorization)</option><option value="DNSKEY">DNSKEY</option><option value="DS">DS (Delegation Signer)</option><option value="NSEC">NSEC (NextSECure record)</option><option value="NSEC3">NSEC3</option><option value="RRSIG">RRSIG (Resource Record Signature)</option><option value="SRV">SRV (Service)</option><option value="HTTPS">HTTPS</option><option value="SVCB">SVCB (Service Binding)</option><option value="PTR">PTR (Pointer - 4.2.0.192.in-addr.arpa)</option><option value="PTR-x">PTR-x (Pointer - 192.0.2.4)</option><option value="ANY">ANY</option><option value="VERSION">VERSION (CHAOS/TXT/version.bind)</option>
+                    </select>
+                </div>
                 <div>
                     <label for="rd" class="label-wide">再帰検索の要求 (RD):</label>
                     <input type="checkbox" id="rd" name="rd" value="1">
-                    <label class="label-description" for="rd">(クエリー先がフルサービスリゾルバーのときはチェック)</label></div>
+                    <label class="label-description" for="rd">(クエリー先がフルサービスリゾルバーのときはチェック)</label>
+                </div>
                 <div class="option-group">
                     <div class="option-div">
                         <label for="cd" class="label-wide">チェックの無効化 (CD):</label>
@@ -115,7 +122,33 @@
         </section>
         <p><button type="button" id="search-toggle">入力欄非表示</button></p>
         <section id="results" aria-live="polite"></section>
-        <section id="description" class="explanation"><h3>説明</h3><p>digコマンドや drillコマンドのように DNSクエリーを送信し、受信した内容を表示します。</p><p>デフォルトでは<a href="https://jprs.jp/glossary/index.php?ID=0158" target="_blank">フルサービスリゾルバー</a>の動作を体験できます。対象ドメイン名を入力して送信し、AUTHORITY や ADDITIONAL の情報に含まれるドメイン名 (NS) や IPアドレス (A, AAAA) をクリックすると、<a href="https://jprs.jp/glossary/index.php?ID=0152" target="_blank">委任</a>を辿れます。</p><p>クエリー先DNSサーバーには別の<a href="https://jprs.jp/glossary/index.php?ID=0145" target="_blank">権威サーバー</a>のドメイン名か IPアドレスも入力できます。Qminiリセットはクエリー先を a.root-servers.net に戻し、QNAME minimisation の位置情報を初期化します。</p><p><a href="https://jprs.jp/glossary/index.php?ID=0197" target="_blank">スタブリゾルバー</a>の動作も、フルサービスリゾルバーを指定して RD フラグを有効にすると体験できます。DNSSEC 検証は行いません。</p></section>
+        <section id="description" class="explanation">
+            <h3>説明</h3>
+            <p>digコマンドや drillコマンドのように DNSクエリーを送信し、受信した内容を表示します。</p>
+            <p>■デフォルトでは<b><a href="https://jprs.jp/glossary/index.php?ID=0158" target="_blank">フルサービスリゾルバー</a></b>の動作 (処理) を<b>体験</b>できるようになっています。
+            <ol>
+                <li><b>「対象ドメイン名」を入力</b>して<b>「送信」</b>してください。</li>
+                <ul>
+                    <li>AUTHORITYや ADDITIONALの情報に含まれるドメイン名 (NS) や IPアドレス (A, AAAA) をクリックすることで、<a href="https://jprs.jp/glossary/index.php?ID=0152" target="_blank">委任</a>を辿る (非再帰検索/反復検索を体験する) ことができます。</li>
+                </ul>
+                <li>「クエリー先DNSサーバー」は別の<a href="https://jprs.jp/glossary/index.php?ID=0145">権威サーバー</a>のドメイン名か IPアドレスを入力することもできます。</li>
+                <li>「Qminiリセット」をクリックすることで、各種パラメーターを保持しつつ、以下のパラメーターをデフォルト値に戻します。</li>
+                <ul>
+                    <li>「クエリー先DNSサーバー」を「a.root-servers.net」にします。</li>
+                    <li>QNAME minimisationにおけるドメイン名の位置情報 (どのラベルより後ろを問い合わせているか) をリセットします。</li>
+                </ul>
+            </ol>
+            </p>
+            <p>■<b><a href="https://jprs.jp/glossary/index.php?ID=0197" target="_blank">スタブリゾルバー</a></b>の動作 (処理) も<b>体験</b>することができます。
+                <ol><li>「クエリー先DNSサーバー」に<a href="https://jprs.jp/glossary/index.php?ID=0158" target="_blank">フルサービスリゾルバー</a>のドメイン名か IPアドレスを入力し、</li>
+                    <li>「対象ドメイン名」を入力して、</li>
+                    <li>「RDフラグ」にチェックを入れて、</li>
+                    <li>「送信」してください。</li>
+                    <ul><li><a href="https://jprs.jp/glossary/index.php?ID=0084" target="_blank">名前解決</a>は入力した<a href="https://jprs.jp/glossary/index.php?ID=0158" target="_blank">フルサービスリゾルバー</a>が代わりにやってくれますので、これ以上の操作は不要です。</li></ul>
+                </ol>
+            </p>
+            <p>※DNSSEC検証はしません。</p>
+        </section>
     </main>
     <script src="dns-web-tool-client.js" defer></script>
 </body>

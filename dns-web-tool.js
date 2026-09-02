@@ -243,8 +243,11 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domai
             questionName = question.name;
             questionType = replaceUnknownRrTypeToKnown(question.type);
             html += `<li>クエリー名: <code>${escapeHtml(questionName)}</code>${qnameMinimisation ? `<span style="font-size: 90%;"> (ラベル位置: <code>${escapeHtml(qnamePosition)}</code>)</span>` : ''}</li>`;
-            html += `<li>クエリータイプ (type): <code>${escapeHtml(questionType)}</code></li>`;
+            html += `<li>クエリータイプ: <code>${escapeHtml(questionType)}</code></li>`;
         });
+    } else {
+        html += `<li style="color: red;">クエリー名: <code>${escapeHtml(domainName)}</code> - 応答に QUESTION SECTION が存在しません</li>`;
+        html += `<li style="color: red;">クエリータイプ: <code>${escapeHtml(queryType)}</code> - 応答に QUESTION SECTION が存在しません</li>`;
     }
 
     // 応答コード (rcode) の取得
@@ -760,8 +763,6 @@ const queryAuthoritativeServer = (serverAddress, name, type) => new Promise((res
     const packet = dnsPacket.encode({
         type: 'query',
         id: Math.floor(Math.random() * 65535),
-        // 権威サーバーから DNSSEC 検証を行わない応答を受け取る。
-        flags: dnsPacket.CHECKING_DISABLED,
         questions: [{ name, type, class: 'IN' }],
         additionals: [{ type: 'OPT', name: '.', udpPayloadSize: 1232, flags: 0 }]
     });

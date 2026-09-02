@@ -892,14 +892,20 @@ const resolveDnsServerAddress = async (dnsServer, preferIpv6, resolutionDepth = 
             return directGlueAddress.data;
         }
         if (glueAddresses.length === 0) {
+            let resolvedNameServerAddress;
             for (const delegatedName of delegatedNames) {
                 try {
-                    return await resolveDnsServerAddress(delegatedName, preferIpv6, resolutionDepth + 1);
+                    resolvedNameServerAddress = await resolveDnsServerAddress(delegatedName, preferIpv6, resolutionDepth + 1);
+                    break;
                 } catch (error) {
                     // 他の委任先NSの名前解決を試す。
                 }
             }
-            throw new Error(`委任先 ${delegatedZone} のIPアドレスを取得できませんでした。`);
+            if (!resolvedNameServerAddress) {
+                throw new Error(`委任先 ${delegatedZone} のIPアドレスを取得できませんでした。`);
+            }
+            nameServers = [resolvedNameServerAddress];
+            continue;
         }
         nameServers = glueAddresses;
     }

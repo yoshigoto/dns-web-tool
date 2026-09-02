@@ -758,24 +758,69 @@ const ROOT_SERVERS = [
 
 const normalizeDnsName = (name) => name.replace(/\.$/, '').toLowerCase();
 
+const queryAuthoritativeServerOverTcp = (serverAddress, query) => new Promise((resolve, reject) => {
+    const client = new net.Socket({ family: net.isIP(serverAddress) === 6 ? 6 : 4 });
+    let responseBuffer = Buffer.alloc(0);
+    let expectedLength = null;
+    let settled = false;
+    const finish = (callback) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeoutId);
+        client.destroy();
+        callback();
+    };
+    const timeoutId = setTimeout(() => {
+        finish(() => reject(new Error(`${serverAddress} から TCP 応答がありませんでした。`)));
+    }, 2000);
+
+    client.once('connect', () => {
+        client.write(dnsPacket.streamEncode(query));
+    });
+    client.on('data', (data) => {
+        responseBuffer = Buffer.concat([responseBuffer, data]);
+        if (expectedLength === null && responseBuffer.length >= 2) {
+            expectedLength = responseBuffer.readUInt16BE(0) + 2;
+        }
+        if (expectedLength !== null && responseBuffer.length >= expectedLength) {
+            finish(() => {
+                try {
+                    resolve(dnsPacket.streamDecode(responseBuffer));
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        }
+    });
+    client.once('error', (error) => {
+        finish(() => reject(error));
+    });
+    client.connect(53, serverAddress);
+});
+
 const queryAuthoritativeServer = (serverAddress, name, type) => new Promise((resolve, reject) => {
     const client = dgram.createSocket(net.isIP(serverAddress) === 6 ? 'udp6' : 'udp4');
-    const packet = dnsPacket.encode({
+    const query = {
         type: 'query',
         id: Math.floor(Math.random() * 65535),
-        questions: [{ name, type, class: 'IN' }],
-        additionals: [{ type: 'OPT', name: '.', udpPayloadSize: 1232, flags: 0 }]
-    });
+        questions: [{ name, type, class: 'IN' }]
+    };
+    const packet = dnsPacket.encode(query);
     const timeoutId = setTimeout(() => {
         client.close();
-        reject(new Error(`${serverAddress} から応答がありませんでした。`));
+        reject(new Error(`${serverAddress} から UDP 応答がありませんでした。`));
     }, 2000);
 
     client.once('message', (message) => {
         clearTimeout(timeoutId);
         client.close();
         try {
-            resolve(dnsPacket.decode(message));
+            const response = dnsPacket.decode(message);
+            if (response.flags & dnsPacket.TRUNCATED_RESPONSE) {
+                queryAuthoritativeServerOverTcp(serverAddress, query).then(resolve, reject);
+                return;
+            }
+            resolve(response);
         } catch (error) {
             reject(error);
         }

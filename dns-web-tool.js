@@ -225,7 +225,7 @@ const decodeResourceRecord = (type, msg) => {
     return escapeHtml(displayData);
 }
 
-const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domainName, queryType, queryId, recursionDesired, checkingDisabled,
+const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, dnsServerIp, domainName, queryType, queryId, recursionDesired, checkingDisabled,
     sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType) => {
     let html = '';
     let questionName = '';
@@ -235,7 +235,7 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, domai
     html += '<p><strong>基本情報:</strong></p>';
     html += '<ul>';
     html += `<li>プロトコル: <code>${sendTcp ? 'TCP' : 'UDP'}</code> / 応答サイズ: <code>${bytesRead}</code>byte</li>`;
-    html += `<li>応答したサーバー: <code>${escapeHtml(dnsServer)}</code></li>`;
+    html += `<li>応答したサーバー: <code>${escapeHtml(dnsServer)} (${escapeHtml(dnsServerIp)})</code></li>`;
     html += `<li>クエリーID: <code>${queryId} (${response.id === queryId ? '一致' : '<span style="color: red;">不一致</span>'})</code></li>`;
 
     if (response.questions && response.questions.length > 0) {
@@ -1222,7 +1222,7 @@ const server = http.createServer(async (req, res) => {
                 try {
                     const response = dnsPacket.streamDecode(receivedBuffer);
                     const bytesRead = dnsPacket.streamDecode.bytes;
-                    resultHtml += makeHtmlFromDns(response, bytesRead, parsedUrl.origin, parsedUrl.pathname, dnsServer, domainName, queryType, qId, recursionDesired, checkingDisabled,
+                    resultHtml += makeHtmlFromDns(response, bytesRead, parsedUrl.origin, parsedUrl.pathname, dnsServer, dnsServerAddress, domainName, queryType, qId, recursionDesired, checkingDisabled,
                         sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType);
                 } catch (err) {
                     html += `<div class="result error"><p>エラー: パケットの解析に失敗しました: ${escapeHtml(err.message)}</p></div>`;
@@ -1287,7 +1287,7 @@ const server = http.createServer(async (req, res) => {
             try {
                 const response = dnsPacket.decode(msg);
                 const bytesRead = dnsPacket.decode.bytes;
-                html += makeHtmlFromDns(response, bytesRead, parsedUrl.origin, parsedUrl.pathname, dnsServer, domainName, queryType, qId, recursionDesired, checkingDisabled,
+                html += makeHtmlFromDns(response, bytesRead, parsedUrl.origin, parsedUrl.pathname, dnsServer, dnsServerAddress, domainName, queryType, qId, recursionDesired, checkingDisabled,
                     sendTcp, sendIpv6, edns0Enable, dnssecOk, udpSize, nsidEnable, mQType, qnameMinimisation, qnamePosition, qnameType);
             } catch (err) {
                 html += `<div class="result error"><p>エラー: パケットの解析に失敗しました: ${escapeHtml(err.message)}</p></div>`;

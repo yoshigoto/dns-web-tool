@@ -32,7 +32,9 @@ const EDE_ERRORS = {
     21: 'Not Supported',
     22: 'No Reachable Authority',
     23: 'Network Error',
-    24: 'Invalid Data'
+    24: 'Invalid Data',
+    25: 'Signature Expired Before Valid',
+    26: 'Too Early'
 };
 
 const getEdeErrorName = (infoCode) => {
@@ -465,12 +467,14 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, dnsSe
 
                                 const infoCode = buffer.readUInt16BE(0);
                                 const errorName = getEdeErrorName(infoCode);
-                                edeString = `${escapeHtml(infoCode)} (${errorName})`;
+                                let edeTemp = ''; 
+                                edeTemp = `${escapeHtml(infoCode)} (${errorName})`;
 
                                 if (buffer.length > 2) {
                                     const extraText = buffer.toString('utf8', 2);
-                                    edeString += `: (${escapeHtml(extraText)})`;
+                                    edeTemp += `: (${escapeHtml(extraText)})`;
                                 }
+                                edeString += `<li><strong>[EDE]</strong> <code>${edeTemp}</code></li>`;
                             }
                             if (option.code === 21 && Buffer.isBuffer(option.data)) {
                                 mQTypeResponseFound = true;
@@ -511,7 +515,7 @@ const makeHtmlFromDns = (response, bytesRead, origin, pathname, dnsServer, dnsSe
                             optPseudo += `<li><strong>[NSID]</strong> <code>${nsidString}</code></li>`;
                         }
                         if (edeString !== '') {
-                            optPseudo += `<li><strong>[EDE]</strong> <code>${edeString}</code></li>`;
+                            optPseudo += `${edeString}`;
                         }
                         if (mQTypeResponseFound) {
                             optPseudo += `<li><strong>[MQTYPE-Response]</strong> <code>${mQTypeString || '(empty)'}</code></li>`;

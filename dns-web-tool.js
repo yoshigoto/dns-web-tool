@@ -34,7 +34,16 @@ const EDE_ERRORS = {
     23: 'Network Error',
     24: 'Invalid Data',
     25: 'Signature Expired Before Valid',
-    26: 'Too Early'
+    26: 'Too Early',
+    27: 'Unsupported NSEC3 Iterations Value',
+    28: 'Unable to conform to policy',
+    29: 'Synthesized',
+    30: 'Invalid Query Type',
+    31: 'Rate Limited',
+    32: 'Over Quota',
+    33: 'Negative Trust Anchor',
+    34: 'New Delegation Only',
+    35: 'Blocked by Upstream DNS Server'
 };
 
 const getEdeErrorName = (infoCode) => {
@@ -42,7 +51,7 @@ const getEdeErrorName = (infoCode) => {
     if (!Object.hasOwn(EDE_ERRORS, infoCode)) {
         return escapeHtml(errorName);
     }
-    const errorUrl = 'https://www.rfc-editor.org/rfc/rfc8914.html#section-4.1';
+    const errorUrl = 'https://www.iana.org/assignments/dns-parameters#extended-dns-error-codes';
     return `<a href="${errorUrl}" target="_blank" rel="noopener noreferrer">${escapeHtml(errorName)}</a>`;
 };
 

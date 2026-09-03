@@ -844,6 +844,17 @@ const queryAuthoritativeServer = (serverAddress, name, type) => new Promise((res
 });
 
 const resolveDnsServerAddress = async (dnsServer, preferIpv6, resolutionDepth = 0) => {
+    try {
+        return await resolveDnsServerAddressByType(dnsServer, preferIpv6, resolutionDepth);
+    } catch (error) {
+        if (preferIpv6) {
+            throw error;
+        }
+        return resolveDnsServerAddressByType(dnsServer, true, resolutionDepth);
+    }
+};
+
+const resolveDnsServerAddressByType = async (dnsServer, preferIpv6, resolutionDepth = 0) => {
     if (net.isIP(dnsServer)) return dnsServer;
     if (resolutionDepth >= 5) {
         throw new Error('DNSサーバー名の解決で入れ子の委任が上限を超えました。');

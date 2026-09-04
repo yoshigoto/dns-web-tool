@@ -900,7 +900,7 @@ const resolveDnsServerAddressByType = async (dnsServer, preferIpv6, resolutionDe
 
         const delegation = response.authorities.find(record => record.type === 'NS');
         if (!delegation) {
-            throw new Error(`DNSサーバー名 ${dnsServer} の ${queryType} レコードが見つかりませんでした。`);
+            throw new Error(`DNSサーバー名 ${dnsServer} の A/AAAA レコードが見つかりませんでした。`);
         }
         const delegatedZone = normalizeDnsName(delegation.name);
         const delegatedNames = response.authorities

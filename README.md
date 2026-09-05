@@ -1,6 +1,6 @@
 # DNSクエリー送信ツール
 
-ブラウザからDNSクエリーを送信し、DNSパケットの応答内容を解析して表示するWebアプリケーションです。`dig` や `drill` のような確認を、DNSの委任や各種オプションを意識しながらWebブラウザで行えます。
+Webブラウザからの操作によりDNSクエリーを送信し、受信したDNSメッセージの応答内容を解析して表示するWebアプリケーションです。`dig` や `drill` のような確認を、DNSの委任や各種オプションを意識しながらWebブラウザで行うことができます。
 
 ## 公開サイト
 
@@ -8,17 +8,17 @@ https://www.on-link.jp/dnsquerytool/
 
 ## 主な機能
 
-- DNSサーバーを指定したクエリーの送信
+- DNSサーバー (権威サーバー、フルサービスリゾルバー) を指定したクエリーの送信
 - UDPまたはTCPによるDNS通信
 - IPv4またはIPv6を優先したDNSサーバー名の解決
-- 非再帰検索と再帰検索（RD）の切り替え
-- QNAME minimisation（RFC 7816 / RFC 9156）を利用した反復検索
-- EDNS0、DNSSEC OK（DO）、Checking Disabled（CD）、NSIDの指定
+- 非再帰検索と再帰検索 (RD) の切り替え
+- QNAME minimisation (RFC 7816 / RFC 9156) を利用した反復検索
+- EDNS0、DNSSEC OK (DO) 、Checking Disabled (CD) 、NSIDの要求
 - UDPメッセージサイズの指定
-- MQTYPE-Query（RFC 10029）の指定と応答表示
+- MQTYPE-Query (RFC 10029) の指定と応答表示
 - A、AAAA、MX、NS、SOA、TXT、CNAME、DNSKEY、DS、HTTPS、SVCBなどのレコード表示
 - DNS応答の `ANSWER`、`AUTHORITY`、`ADDITIONAL` セクションの解析
-- TCフラグ、rcode、DNSSEC関連情報、Extended DNS Errorの表示
+- TCフラグなどの各種フラグ、応答コード (rcode)、DNSSEC関連情報、Extended DNS Errorの表示
 - 応答に含まれるドメイン名やIPアドレスから、次のクエリーを実行
 - クエリー条件をURLのクエリーパラメーターとして保持
 
@@ -29,7 +29,7 @@ https://www.on-link.jp/dnsquerytool/
 3. 「DNSパケットを送信」をクリックします。
 4. 表示された `ANSWER`、`AUTHORITY`、`ADDITIONAL` の内容を確認します。
 
-デフォルトでは `a.root-servers.net` を問い合わせ先とする非再帰検索です。委任を辿る場合は、応答に表示されたNSやIPアドレスをクリックして次の問い合わせを実行できます。
+デフォルトでは `a.root-servers.net` を問い合わせ先とする非再帰検索です。委任を辿る場合は、応答として表示されたNSやIPアドレスをクリックして次の問い合わせを行います。
 
 フルサービスリゾルバーに名前解決を任せる場合は、問い合わせ先にフルサービスリゾルバーを指定し、「RD」にチェックを入れてください。
 
@@ -38,7 +38,7 @@ https://www.on-link.jp/dnsquerytool/
 ### 必要な環境
 
 - Node.js
-- DNSサーバーへUDPまたはTCPの53番ポートで接続できるネットワーク
+- DNSサーバー (権威サーバー、フルサービスリゾルバー) に対してUDPまたはTCPの53番ポートで接続できるネットワーク
 
 ### 起動
 
@@ -66,21 +66,21 @@ node dns-web-tool.js
 
 | 項目 | URLパラメーター | 説明 |
 | --- | --- | --- |
-| 問い合わせ先 | `server` | DNSサーバーのホスト名またはIPアドレス。省略時は `a.root-servers.net` |
-| ドメイン名 | `name` | 問い合わせ対象のドメイン名 |
-| クエリータイプ | `type` | `A`、`AAAA`、`MX`、`NS`、`SOA`、`TXT`、`CNAME`、`DNAME`、`CAA`、`DNSKEY`、`DS`、`NSEC`、`NSEC3`、`RRSIG`、`SRV`、`HTTPS`、`SVCB`、`PTR`、`PTR-x`、`ANY`、`VERSION` |
-| 再帰検索 | `rd=1` | RDフラグを付ける |
-| チェック無効化 | `cd=1` | CDフラグを付ける |
+| クエリー先DNSサーバー | `server` | DNSサーバー (権威サーバー、フルサービスリゾルバー) のホスト名またはIPアドレス (省略時は `a.root-servers.net`) |
+| 対象ドメイン名 (name) | `name` | 問い合わせ対象のドメイン名 |
+| クエリータイプ (type) | `type` | `A`、`AAAA`、`MX`、`NS`、`SOA`、`TXT`、`CNAME`、`DNAME`、`CAA`、`DNSKEY`、`DS`、`NSEC`、`NSEC3`、`RRSIG`、`SRV`、`HTTPS`、`SVCB`、`PTR`、`PTR-x`、`ANY`、`VERSION` |
+| 再帰検索の要求 (RD) | `rd=1` | RDフラグを付ける |
+| チェックの無効化 (CD) | `cd=1` | CDフラグを付ける |
 | QNAME minimisation | `qmini=1` | QNAME minimisationを有効にする |
-| QNAME位置 | `qposi` | QNAME minimisationで問い合わせるラベル位置 |
+| - | `qposi` | QNAME minimisationで問い合わせるラベル位置 |
 | QNAMEタイプ | `qtype` | `A` または `NS` |
-| EDNS0 | `edns0=1` | EDNS0を付与する |
-| DNSSEC情報 | `dnssec=1` | DOフラグを付ける |
-| UDPサイズ | `udpsize` | EDNS0のUDPメッセージサイズ。`512`～`65535` |
-| NSID | `nsid=1` | NSIDオプションを要求する |
-| MQTYPE | `mqtype` | 例: `A,AAAA,MX` |
-| TCP | `tcp=1` | TCPで問い合わせる |
-| IPv6 | `ipv6=1` | DNSサーバー名の解決・通信でIPv6を優先する |
+| EDNS0の付与 | `edns0=1` | EDNS0を付与する |
+| DNSSEC情報の要求 (DO) | `dnssec=1` | DOフラグを付ける |
+| UDPメッセージサイズ | `udpsize` | EDNS0のUDPメッセージサイズ (`512`～`65535`) |
+| NSIDの要求 | `nsid=1` | NSID情報を要求する |
+| MQTYPE-Query | `mqtype` | 例: `A,AAAA,MX` |
+| TCP送受信 | `tcp=1` | TCPで問い合わせる |
+| IPv6送受信 | `ipv6=1` | DNSサーバー名の解決やクエリー送信の際にIPv6を優先する |
 
 APIのエンドポイントは、アプリケーションパスからの相対パスで `api/query` です。ブラウザ画面はこのエンドポイントへリクエストし、解析済みのHTMLを受け取って結果欄に表示します。
 
